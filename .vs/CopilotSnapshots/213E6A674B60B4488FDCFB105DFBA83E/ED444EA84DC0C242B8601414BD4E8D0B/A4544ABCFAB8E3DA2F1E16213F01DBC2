@@ -1,0 +1,20 @@
+﻿using System.ComponentModel.DataAnnotations;
+
+namespace ClinicManagement.Models
+{
+    public class Specialty
+    {
+        [Key]
+        public int SpecialtyId { get; set; }
+
+        [Required(ErrorMessage = "Tên chuyên khoa là bắt buộc")]
+        [StringLength(100)]
+        public string SpecialtyName { get; set; }
+
+        [StringLength(500)]
+        public string? Description { get; set; }
+
+        // Navigation properties
+        public ICollection<Doctor>? Doctors { get; set; }
+    }
+}

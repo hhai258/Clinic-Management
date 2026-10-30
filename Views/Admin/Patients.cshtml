@@ -1,0 +1,175 @@
+@model IEnumerable<ClinicManagement.Models.User>
+@{
+    ViewData["Title"] = "Quan ly Benh nhan";
+}
+
+<div class="page-header">
+    <h2>
+        <div class="icon" style="background:#d1fae5;color:#065f46"><i class="fas fa-users"></i></div>
+        Quan ly Benh nhan
+        <span class="badge" style="background:#d1fae5;color:#065f46;font-size:0.75rem;">@ViewBag.TotalPatients</span>
+    </h2>
+    <a asp-action="CreatePatient" class="btn btn-primary">
+        <i class="fas fa-user-plus"></i> Them benh nhan
+    </a>
+</div>
+
+<!-- Search Bar -->
+<div class="card mb-3">
+    <div class="card-body py-3">
+        <form method="get" asp-action="Patients">
+            <div class="row g-2 align-items-center">
+                <div class="col-md-8 col-sm-10">
+                    <div class="search-bar">
+                        <i class="fas fa-search search-icon"></i>
+                        <input type="text" name="search" class="form-control" placeholder="Tim kiem theo ten, so dien thoai, email..." value="@ViewBag.Search" />
+                    </div>
+                </div>
+                <div class="col-md-2 col-sm-2">
+                    <button type="submit" class="btn btn-primary w-100">
+                        <i class="fas fa-search"></i> Tim
+                    </button>
+                </div>
+                @if (!string.IsNullOrEmpty(ViewBag.Search as string))
+                {
+                    <div class="col-md-2 col-sm-12">
+                        <a asp-action="Patients" class="btn btn-outline-secondary w-100">
+                            <i class="fas fa-times"></i> Xoa loc
+                        </a>
+                    </div>
+                }
+            </div>
+        </form>
+    </div>
+</div>
+
+@if (!Model.Any())
+{
+    <div class="card">
+        <div class="card-body text-center py-5">
+            <div style="font-size:4rem;color:#e2e8f0;margin-bottom:1rem;"><i class="fas fa-user-slash"></i></div>
+            <h5 class="text-muted">
+                @if (!string.IsNullOrEmpty(ViewBag.Search as string))
+                { <text>Khong tim thay ket qua cho "@ViewBag.Search"</text> }
+                else
+                { <text>Chua co benh nhan nao</text> }
+            </h5>
+            <a asp-action="CreatePatient" class="btn btn-primary mt-2">
+                <i class="fas fa-user-plus"></i> Them benh nhan moi
+            </a>
+        </div>
+    </div>
+}
+else
+{
+    <div class="table-card">
+        <table class="table table-hover">
+            <thead>
+                <tr>
+                    <th>#</th>
+                    <th>Benh nhan</th>
+                    <th>Ngay sinh</th>
+                    <th>Gioi tinh</th>
+                    <th>So dien thoai</th>
+                    <th>Email</th>
+                    <th>Ngay tao</th>
+                    <th class="text-center">Thao tac</th>
+                </tr>
+            </thead>
+            <tbody>
+                @{int idx = 1;}
+                @foreach (var patient in Model)
+                {
+                    <tr>
+                        <td class="text-muted">@idx</td>
+                        <td>
+                            <div class="d-flex align-items-center gap-2">
+                                <div class="avatar @(patient.Gender == "Nam" ? "avatar-blue" : "avatar-amber")">
+                                    @patient.FullName.Substring(0, 1).ToUpper()
+                                </div>
+                                <div>
+                                    <div class="fw-600">@patient.FullName</div>
+                                    <small class="text-muted">@@patient.Username</small>
+                                </div>
+                            </div>
+                        </td>
+                        <td>@patient.DateOfBirth.ToString("dd/MM/yyyy")</td>
+                        <td>
+                            @if (patient.Gender == "Nam")
+                            {
+                                <span class="badge" style="background:#dbeafe;color:#1d4ed8"><i class="fas fa-mars me-1"></i>Nam</span>
+                            }
+                            else
+                            {
+                                <span class="badge" style="background:#fce7f3;color:#9d174d"><i class="fas fa-venus me-1"></i>Nu</span>
+                            }
+                        </td>
+                        <td><i class="fas fa-phone text-muted me-1"></i>@patient.PhoneNumber</td>
+                        <td><small>@patient.Email</small></td>
+                        <td><small class="text-muted">@(patient.CreatedAt?.ToString("dd/MM/yyyy") ?? "N/A")</small></td>
+                        <td class="text-center">
+                            <div class="d-flex gap-1 justify-content-center">
+                                <a asp-action="PatientDetail" asp-route-id="@patient.UserId"
+                                   class="btn btn-sm btn-icon" style="background:#dbeafe;color:#2563eb;" title="Xem chi tiet">
+                                    <i class="fas fa-eye"></i>
+                                </a>
+                                <a asp-action="EditPatient" asp-route-id="@patient.UserId"
+                                   class="btn btn-sm btn-icon" style="background:#fef3c7;color:#92400e;" title="Chinh sua">
+                                    <i class="fas fa-edit"></i>
+                                </a>
+                                <button type="button"
+                                        class="btn btn-sm btn-icon btn-delete"
+                                        style="background:#fee2e2;color:#991b1b;"
+                                        title="Xoa"
+                                        data-id="@patient.UserId"
+                                        data-name="@patient.FullName">
+                                    <i class="fas fa-trash"></i>
+                                </button>
+                            </div>
+                        </td>
+                    </tr>
+                    idx++;
+                }
+            </tbody>
+        </table>
+    </div>
+}
+
+<!-- Delete Confirm Modal -->
+<div class="modal fade" id="deleteModal" tabindex="-1">
+    <div class="modal-dialog modal-sm">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title text-danger"><i class="fas fa-exclamation-triangle me-2"></i>Xac nhan xoa</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p>Ban co chac muon xoa benh nhan <strong id="deleteName"></strong>?</p>
+                <small class="text-danger">Hanh dong nay khong the hoan tac!</small>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-outline-secondary btn-sm" data-bs-dismiss="modal">Huy</button>
+                <form id="deleteForm" method="post">
+                    @Html.AntiForgeryToken()
+                    <button type="submit" class="btn btn-danger btn-sm">
+                        <i class="fas fa-trash me-1"></i>Xoa
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+<script>
+    document.querySelectorAll('.btn-delete').forEach(btn => {
+        btn.addEventListener('click', function () {
+            const id = this.dataset.id;
+            const name = this.dataset.name;
+            document.getElementById('deleteName').textContent = name;
+            document.getElementById('deleteForm').action = '/Admin/DeletePatient/' + id;
+            new bootstrap.Modal(document.getElementById('deleteModal')).show();
+        });
+    });
+</script>
+}

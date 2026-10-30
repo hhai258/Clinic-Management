@@ -1,0 +1,250 @@
+﻿// File: Controllers/PatientController.cs
+// Description: Controller that contains actions used by authenticated patients to
+//              browse doctors, book and manage appointments, and view medical
+//              history and profile information.
+// Notes: This controller assumes the application uses role-based authorization
+//        and that patient user id is stored in the NameIdentifier claim.
+
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
+using ClinicManagement.Data;
+using ClinicManagement.Models;
+using ClinicManagement.Models.ViewModels;
+using System.Security.Claims;
+
+namespace ClinicManagement.Controllers
+{
+    [Authorize(Roles = "Patient")]
+    /// <summary>
+    /// Handles all patient-facing actions such as listing doctors, booking
+    /// appointments, viewing appointment lists and medical records, and
+    /// editing the patient's profile.
+    /// </summary>
+    public class PatientController : Controller
+    {
+        // EF Core DB context used to query and persist domain entities.
+        private readonly ApplicationDbContext _context;
+
+        /// <summary>
+        /// Controller constructor. The DB context is injected by DI.
+        /// </summary>
+        /// <param name="context">Application DB context</param>
+        public PatientController(ApplicationDbContext context) { _context = context; }
+
+        /// <summary>
+        /// Helper that reads the currently authenticated user's id from the
+        /// claims principal. Throws if the claim is missing or not an int.
+        /// </summary>
+        /// <returns>Integer user id from ClaimTypes.NameIdentifier</returns>
+        private int GetUserId() => int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+
+        /// <summary>
+        /// Patient dashboard. Shows upcoming appointments and some summary
+        /// statistics (total appointments, completed, waiting).
+        /// </summary>
+        /// <returns>View with a list of upcoming appointments</returns>
+        public IActionResult Index()
+        {
+            var userId = GetUserId();
+            var upcomingAppointments = _context.Appointments
+                .Include(a => a.Doctor).ThenInclude(d => d.User).Include(a => a.Doctor).ThenInclude(d => d.Specialty)
+                .Where(a => a.PatientId == userId && a.Status == "Đã đặt")
+                .OrderBy(a => a.AppointmentDate).ThenBy(a => a.AppointmentTime).ToList();
+
+            var patient = _context.Users.Find(userId);
+            ViewBag.Patient = patient;
+            ViewBag.TotalAppointments = _context.Appointments.Count(a => a.PatientId == userId);
+            ViewBag.TotalDone = _context.Appointments.Count(a => a.PatientId == userId && a.Status == "Đã khám");
+            ViewBag.TotalWaiting = _context.Appointments.Count(a => a.PatientId == userId && a.Status == "Đã đặt");
+            return View(upcomingAppointments);
+        }
+
+        /// <summary>
+        /// Lists doctors filtered optionally by specialty or search term.
+        /// Populates viewbag values for specialties and selected filters.
+        /// </summary>
+        /// <param name="specialtyId">Optional specialty id to filter doctors</param>
+        /// <param name="search">Optional search term matching doctor name or specialty</param>
+        /// <returns>View with the filtered list of doctors</returns>
+        public IActionResult Doctors(int? specialtyId, string? search)
+        {
+            var query = _context.Doctors.Include(d => d.User).Include(d => d.Specialty).AsQueryable();
+            if (specialtyId.HasValue) query = query.Where(d => d.SpecialtyId == specialtyId.Value);
+            if (!string.IsNullOrEmpty(search)) query = query.Where(d => d.User.FullName.Contains(search) || d.Specialty.SpecialtyName.Contains(search));
+            ViewBag.Specialties = _context.Specialties.ToList();
+            ViewBag.SelectedSpecialty = specialtyId;
+            ViewBag.Search = search;
+            return View(query.ToList());
+        }
+
+        /// <summary>
+        /// GET: Prepares the booking page. If a doctorId is provided, pre-selects
+        /// the doctor and specialty and sets the default appointment date.
+        /// </summary>
+        /// <param name="doctorId">Optional doctor id to pre-select</param>
+        /// <returns>View with a BookAppointmentViewModel</returns>
+        public IActionResult BookAppointment(int? doctorId)
+        {
+            var model = new BookAppointmentViewModel { Specialties = _context.Specialties.ToList(), AppointmentDate = DateTime.Today.AddDays(1) };
+            if (doctorId.HasValue)
+            {
+                var doctor = _context.Doctors.Include(d => d.User).Include(d => d.Specialty).FirstOrDefault(d => d.DoctorId == doctorId.Value);
+                if (doctor != null) { model.SpecialtyId = doctor.SpecialtyId; model.DoctorId = doctor.DoctorId; model.Doctors = new List<Doctor> { doctor }; }
+            }
+            return View(model);
+        }
+
+        /// <summary>
+        /// AJAX endpoint: returns a JSON list of doctors for a given specialty.
+        /// Used by the client to populate doctor selection dynamically.
+        /// </summary>
+        /// <param name="specialtyId">Specialty id</param>
+        /// <returns>JSON array of lightweight doctor objects</returns>
+        [HttpGet]
+        public JsonResult GetDoctorsBySpecialty(int specialtyId)
+        {
+            var doctors = _context.Doctors.Include(d => d.User).Where(d => d.SpecialtyId == specialtyId)
+                .Select(d => new { doctorId = d.DoctorId, fullName = d.User.FullName, degree = d.Degree, experience = d.Experience, examinationFee = d.ExaminationFee, photoUrl = d.PhotoUrl })
+                .ToList();
+            return Json(doctors);
+        }
+
+        /// <summary>
+        /// AJAX endpoint: returns available time slots for a doctor on a given
+        /// date by removing already booked slots (excluding canceled appointments).
+        /// </summary>
+        /// <param name="doctorId">Doctor id</param>
+        /// <param name="date">Date to check availability for</param>
+        /// <returns>JSON list of available time strings</returns>
+        [HttpGet]
+        public JsonResult GetAvailableTimeSlots(int doctorId, DateTime date)
+        {
+            var allSlots = new[] { "08:00", "09:00", "10:00", "11:00", "13:00", "14:00", "15:00", "16:00", "17:00" };
+            var bookedSlots = _context.Appointments.Where(a => a.DoctorId == doctorId && a.AppointmentDate == date && a.Status != "Đã hủy").Select(a => a.AppointmentTime).ToList();
+            return Json(allSlots.Except(bookedSlots).ToList());
+        }
+
+        /// <summary>
+        /// POST: Attempts to create a new appointment for the current patient.
+        /// Performs validation against past dates and duplicate bookings.
+        /// </summary>
+        /// <param name="model">Booking data submitted from the form</param>
+        /// <returns>Redirects to MyAppointments on success or returns the view with errors</returns>
+        [HttpPost][ValidateAntiForgeryToken]
+        public IActionResult BookAppointment(BookAppointmentViewModel model)
+        {
+            if (ModelState.IsValid)
+            {
+                var userId = GetUserId();
+                if (model.AppointmentDate < DateTime.Today) { ModelState.AddModelError("AppointmentDate", "Ngày hẹn phải từ hôm nay trở đi"); model.Specialties = _context.Specialties.ToList(); return View(model); }
+                var isDuplicate = _context.Appointments.Any(a => a.DoctorId == model.DoctorId && a.AppointmentDate == model.AppointmentDate && a.AppointmentTime == model.AppointmentTime && a.Status != "Đã hủy");
+                if (isDuplicate) { ModelState.AddModelError("", "Lịch hẹn này đã được đặt. Vui lòng chọn giờ khác."); model.Specialties = _context.Specialties.ToList(); return View(model); }
+                _context.Appointments.Add(new Appointment { PatientId = userId, DoctorId = model.DoctorId, AppointmentDate = model.AppointmentDate, AppointmentTime = model.AppointmentTime, Reason = model.Reason, Status = "Đã đặt" });
+                _context.SaveChanges();
+                TempData["SuccessMessage"] = "Đặt lịch khám thành công!";
+                return RedirectToAction("MyAppointments");
+            }
+            model.Specialties = _context.Specialties.ToList();
+            return View(model);
+        }
+
+        /// <summary>
+        /// Lists all appointments for the current patient (past and future).
+        /// </summary>
+        /// <returns>View with the patient's appointments</returns>
+        public IActionResult MyAppointments()
+        {
+            var userId = GetUserId();
+            var appointments = _context.Appointments.Include(a => a.Doctor).ThenInclude(d => d.User).Include(a => a.Doctor).ThenInclude(d => d.Specialty)
+                .Where(a => a.PatientId == userId).OrderByDescending(a => a.AppointmentDate).ThenBy(a => a.AppointmentTime).ToList();
+            return View(appointments);
+        }
+
+        /// <summary>
+        /// Cancels an appointment if it belongs to the current patient and
+        /// is cancellable (at least 1 day in advance). Uses POST to prevent CSRF.
+        /// </summary>
+        /// <param name="id">Appointment id to cancel</param>
+        /// <returns>Redirects back to MyAppointments</returns>
+        [HttpPost][ValidateAntiForgeryToken]
+        public IActionResult CancelAppointment(int id)
+        {
+            var userId = GetUserId();
+            var a = _context.Appointments.Find(id);
+            if (a != null && a.PatientId == userId && a.Status == "Đã đặt")
+            {
+                if ((a.AppointmentDate - DateTime.Today).Days >= 1) { a.Status = "Đã hủy"; _context.SaveChanges(); TempData["SuccessMessage"] = "Hủy lịch hẹn thành công!"; }
+                else TempData["ErrorMessage"] = "Chỉ có thể hủy lịch trước 1 ngày!";
+            }
+            return RedirectToAction("MyAppointments");
+        }
+
+        /// <summary>
+        /// Returns the medical records associated with the current patient.
+        /// The returned records include related appointment and doctor info.
+        /// </summary>
+        /// <returns>View with the patient's medical records</returns>
+        public IActionResult MedicalHistory()
+        {
+            var userId = GetUserId();
+            var records = _context.MedicalRecords.Include(m => m.Appointment).ThenInclude(a => a.Doctor).ThenInclude(d => d.User).Include(m => m.Appointment).ThenInclude(a => a.Doctor).ThenInclude(d => d.Specialty)
+                .Where(m => m.Appointment.PatientId == userId).OrderByDescending(m => m.ExaminationDate).ToList();
+            return View(records);
+        }
+
+        /// <summary>
+        /// Shows details for a specific medical record belonging to the
+        /// current patient. Returns 404 if the record is not found or not
+        /// owned by the patient.
+        /// </summary>
+        /// <param name="id">Medical record id</param>
+        /// <returns>View with the medical record details or NotFound()</returns>
+        public IActionResult MedicalRecordDetail(int id)
+        {
+            var userId = GetUserId();
+            var record = _context.MedicalRecords.Include(m => m.Appointment).ThenInclude(a => a.Doctor).ThenInclude(d => d.User).Include(m => m.Appointment).ThenInclude(a => a.Doctor).ThenInclude(d => d.Specialty)
+                .FirstOrDefault(m => m.RecordId == id && m.Appointment.PatientId == userId);
+            if (record == null) return NotFound();
+            return View(record);
+        }
+
+        /// <summary>
+        /// GET: Loads the patient's profile for editing. The model returned is
+        /// an UpdateProfileViewModel populated from the current user's data.
+        /// </summary>
+        /// <returns>View with the profile edit form</returns>
+        public IActionResult Profile()
+        {
+            var userId = GetUserId();
+            var patient = _context.Users.Find(userId);
+            if (patient == null) return NotFound();
+            var model = new UpdateProfileViewModel { FullName = patient.FullName, DateOfBirth = patient.DateOfBirth, Gender = patient.Gender, PhoneNumber = patient.PhoneNumber, Email = patient.Email, Address = patient.Address, EmergencyContact = patient.EmergencyContact, MedicalHistory = patient.MedicalHistory };
+            return View(model);
+        }
+
+        /// <summary>
+        /// POST: Saves profile changes submitted by the patient. If a new
+        /// password is provided it will overwrite the stored password (this
+        /// example assumes plain-text password storage; consider hashing).
+        /// </summary>
+        /// <param name="model">Profile values submitted by the user</param>
+        /// <returns>Redirects back to Profile on success or returns the view with validation errors</returns>
+        [HttpPost][ValidateAntiForgeryToken]
+        public async Task<IActionResult> Profile(UpdateProfileViewModel model)
+        {
+            if (ModelState.IsValid)
+            {
+                var userId = GetUserId();
+                var patient = await _context.Users.FindAsync(userId);
+                if (patient == null) return NotFound();
+                patient.FullName = model.FullName; patient.DateOfBirth = model.DateOfBirth; patient.Gender = model.Gender; patient.PhoneNumber = model.PhoneNumber; patient.Email = model.Email; patient.Address = model.Address; patient.EmergencyContact = model.EmergencyContact; patient.MedicalHistory = model.MedicalHistory;
+                if (!string.IsNullOrEmpty(model.NewPassword)) patient.Password = model.NewPassword;
+                await _context.SaveChangesAsync();
+                TempData["SuccessMessage"] = "Cập nhật hồ sơ thành công!";
+                return RedirectToAction("Profile");
+            }
+            return View(model);
+        }
+    }
+}

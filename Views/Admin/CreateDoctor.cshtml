@@ -1,0 +1,58 @@
+@model ClinicManagement.Models.User
+@{ViewData["Title"] = "Thêm Bác sĩ mới";}
+<div class="page-header">
+    <h2><div class="icon" style="background:#d1fae5;color:#065f46"><i class="fas fa-user-plus"></i></div>Thêm Bác sĩ mới</h2>
+    <a asp-action="Doctors" class="btn btn-outline-secondary btn-sm"><i class="fas fa-arrow-left me-1"></i>Quay lại</a>
+</div>
+<div class="card" style="max-width:760px">
+    <div class="card-body p-4">
+        <form asp-action="CreateDoctor" method="post" enctype="multipart/form-data">
+            @Html.AntiForgeryToken()
+            <h6 class="fw-700 text-primary mb-3"><i class="fas fa-key me-2"></i>Tài khoản</h6>
+            <div class="row g-3 mb-4">
+                <div class="col-md-6"><label class="form-label">Tên đăng nhập *</label><input asp-for="Username" class="form-control" required /></div>
+                <div class="col-md-6"><label class="form-label">Mật khẩu *</label><input asp-for="Password" type="password" class="form-control" required /></div>
+            </div>
+            <h6 class="fw-700 text-primary mb-3"><i class="fas fa-user me-2"></i>Thông tin cá nhân</h6>
+            <div class="row g-3 mb-4">
+                <div class="col-md-6"><label class="form-label">Họ và tên *</label><input asp-for="FullName" class="form-control" required /></div>
+                <div class="col-md-3"><label class="form-label">Ngày sinh *</label><input asp-for="DateOfBirth" type="date" class="form-control" required /></div>
+                <div class="col-md-3"><label class="form-label">Giới tính *</label><select asp-for="Gender" class="form-select"><option value="Nam">Nam</option><option value="Nữ">Nữ</option></select></div>
+                <div class="col-md-6"><label class="form-label">Số điện thoại *</label><input asp-for="PhoneNumber" class="form-control" required /></div>
+                <div class="col-md-6"><label class="form-label">Email *</label><input asp-for="Email" type="email" class="form-control" required /></div>
+            </div>
+            <h6 class="fw-700 text-primary mb-3"><i class="fas fa-stethoscope me-2"></i>Thông tin chuyên môn</h6>
+            <div class="row g-3 mb-4">
+                <div class="col-md-6"><label class="form-label">Chuyên khoa *</label><select name="specialtyId" class="form-select" required><option value="">-- Chọn --</option>@foreach(var s in ViewBag.Specialties){<option value="@s.SpecialtyId">@s.SpecialtyName</option>}</select></div>
+                <div class="col-md-2"><label class="form-label">Học vị *</label><select name="degree" class="form-select" required><option value="BS">BS</option><option value="ThS">ThS</option><option value="TS">TS</option></select></div>
+                <div class="col-md-2"><label class="form-label">Kinh nghiệm (năm)</label><input type="number" name="experience" class="form-control" min="0" max="50" value="5" /></div>
+                <div class="col-md-2"><label class="form-label">Giá khám (₫)</label><input type="number" name="examinationFee" class="form-control" min="1" value="200000" /></div>
+                <div class="col-12"><label class="form-label">Giới thiệu bác sĩ</label><textarea name="bio" class="form-control" rows="3" placeholder="Mô tả kinh nghiệm, thành tích..."></textarea></div>
+            </div>
+            <h6 class="fw-700 text-primary mb-3"><i class="fas fa-camera me-2"></i>Ảnh đại diện</h6>
+            <div class="row g-3 mb-4">
+                <div class="col-md-4">
+                    <img id="photoPreview" src="/img/doctor-placeholder.png" class="photo-preview mb-2" alt="Preview" onerror="this.style.display='none'" />
+                    <input type="file" name="photo" class="form-control" accept="image/*" onchange="previewPhoto(this)" />
+                    <div class="text-muted text-sm mt-1">Định dạng JPG, PNG. Tối đa 2MB</div>
+                </div>
+            </div>
+            <div class="d-flex gap-2"><button type="submit" class="btn btn-success"><i class="fas fa-save me-1"></i>Thêm bác sĩ</button><a asp-action="Doctors" class="btn btn-outline-secondary">Hủy</a></div>
+        </form>
+    </div>
+</div>
+@section Scripts {
+<script>
+function previewPhoto(input) {
+    if (input.files && input.files[0]) {
+        var r = new FileReader();
+        r.onload = function(e) {
+            var img = document.getElementById('photoPreview');
+            img.src = e.target.result;
+            img.style.display = 'block';
+        };
+        r.readAsDataURL(input.files[0]);
+    }
+}
+</script>
+}

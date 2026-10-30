@@ -1,0 +1,173 @@
+@model ClinicManagement.Models.Doctor
+@{
+    ViewData["Title"] = "Sửa thông tin Bác sĩ";
+    var specialties = ViewBag.Specialties as IEnumerable<ClinicManagement.Models.Specialty>;
+}
+<div class="page-header">
+    <h2><div class="icon" style="background:#fef3c7;color:#92400e"><i class="fas fa-user-edit"></i></div>Sửa thông tin Bác sĩ</h2>
+    <a asp-action="Doctors" class="btn btn-outline-secondary btn-sm"><i class="fas fa-arrow-left me-1"></i>Quay lại</a>
+</div>
+<div class="card" style="max-width:760px">
+    <div class="card-body p-4">
+        <form asp-action="EditDoctor" method="post" enctype="multipart/form-data">
+            @Html.AntiForgeryToken()
+            <input type="hidden" asp-for="DoctorId" />
+            <input type="hidden" asp-for="UserId" />
+            <input type="hidden" asp-for="User.UserId" />
+
+            <h6 class="fw-700 text-warning mb-3"><i class="fas fa-user me-2"></i>Thông tin cá nhân</h6>
+            <div class="row g-3 mb-4">
+                <div class="col-md-6">
+                    <label class="form-label">Họ và tên *</label>
+                    <input name="User.FullName" value="@Model.User.FullName" class="form-control" required />
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">Ngày sinh *</label>
+                    <input name="User.DateOfBirth" type="date" class="form-control"
+                           value="@Model.User.DateOfBirth.ToString("yyyy-MM-dd")" required />
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">Giới tính</label>
+                    <select name="User.Gender" class="form-select">
+                        @if (Model.User.Gender == "Nam")
+                        {
+                            <option value="Nam" selected="selected">Nam</option>
+                            <option value="Nữ">Nữ</option>
+                        }
+                        else
+                        {
+                            <option value="Nam">Nam</option>
+                            <option value="Nữ" selected="selected">Nữ</option>
+                        }
+                    </select>
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label">Số điện thoại *</label>
+                    <input name="User.PhoneNumber" value="@Model.User.PhoneNumber" class="form-control" />
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label">Email *</label>
+                    <input name="User.Email" type="email" value="@Model.User.Email" class="form-control" />
+                </div>
+            </div>
+
+            <h6 class="fw-700 text-warning mb-3"><i class="fas fa-stethoscope me-2"></i>Thông tin chuyên môn</h6>
+            <div class="row g-3 mb-4">
+                <div class="col-md-6">
+                    <label class="form-label">Chuyên khoa *</label>
+                    <select name="SpecialtyId" class="form-select">
+                        @foreach (var s in specialties!)
+                        {
+                            if (s.SpecialtyId == Model.SpecialtyId)
+                            {
+                                <option value="@s.SpecialtyId" selected="selected">@s.SpecialtyName</option>
+                            }
+                            else
+                            {
+                                <option value="@s.SpecialtyId">@s.SpecialtyName</option>
+                            }
+                        }
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label">Học vị</label>
+                    <select asp-for="Degree" class="form-select">
+                        @if (Model.Degree == "BS")
+                        {
+                            <option value="BS" selected="selected">BS</option>
+                        }
+                        else
+                        {
+                            <option value="BS">BS</option>
+                        }
+                        @if (Model.Degree == "ThS")
+                        {
+                            <option value="ThS" selected="selected">ThS</option>
+                        }
+                        else
+                        {
+                            <option value="ThS">ThS</option>
+                        }
+                        @if (Model.Degree == "TS")
+                        {
+                            <option value="TS" selected="selected">TS</option>
+                        }
+                        else
+                        {
+                            <option value="TS">TS</option>
+                        }
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label">Kinh nghiệm (năm)</label>
+                    <input asp-for="Experience" class="form-control" type="number" min="0" max="50" />
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label">Giá khám (₫)</label>
+                    <input asp-for="ExaminationFee" class="form-control" type="number" min="1" />
+                </div>
+                <div class="col-12">
+                    <label class="form-label">Giới thiệu</label>
+                    <textarea asp-for="Bio" class="form-control" rows="3"></textarea>
+                </div>
+            </div>
+
+            <h6 class="fw-700 text-warning mb-3"><i class="fas fa-camera me-2"></i>Ảnh đại diện</h6>
+            <div class="mb-4 d-flex align-items-center gap-3">
+                @if (!string.IsNullOrEmpty(Model.PhotoUrl))
+                {
+                    <img id="photoPreview" src="@Model.PhotoUrl" class="photo-preview" alt="" />
+                }
+                else
+                {
+                    <div id="photoPreview" style="width:100px;height:100px;border-radius:50%;background:linear-gradient(135deg,#dbeafe,#ede9fe);display:flex;align-items:center;justify-content:center;font-size:2rem;color:#93c5fd">
+                        <i class="fas fa-user-md"></i>
+                    </div>
+                }
+                <div>
+                    <input type="file" name="photo" class="form-control" accept="image/*" onchange="previewPhoto(this)" />
+                    <div class="text-muted text-sm mt-1">Để trống để giữ ảnh hiện tại</div>
+                </div>
+            </div>
+
+            <div class="d-flex gap-2">
+                <button type="submit" class="btn btn-warning text-white">
+                    <i class="fas fa-save me-1"></i>Lưu thay đổi
+                </button>
+                <a asp-action="Doctors" class="btn btn-outline-secondary">Hủy</a>
+                <button type="button" class="btn btn-outline-danger ms-auto"
+                        onclick="if(confirm('Xóa bác sĩ @Model.User.FullName?')) document.getElementById('deleteDoctorForm').submit();">
+                    <i class="fas fa-trash me-1"></i>Xóa
+                </button>
+            </div>
+        </form>
+
+        <form asp-action="DeleteDoctor" method="post" id="deleteDoctorForm" style="display:none">
+            @Html.AntiForgeryToken()
+            <input type="hidden" name="id" value="@Model.DoctorId" />
+        </form>
+    </div>
+</div>
+
+@section Scripts {
+<script>
+function previewPhoto(input) {
+    if (input.files && input.files[0]) {
+        var r = new FileReader();
+        r.onload = function(e) {
+            var p = document.getElementById('photoPreview');
+            if (p.tagName === 'IMG') {
+                p.src = e.target.result;
+            } else {
+                var img = document.createElement('img');
+                img.id = 'photoPreview';
+                img.src = e.target.result;
+                img.className = 'photo-preview';
+                p.parentNode.replaceChild(img, p);
+            }
+        };
+        r.readAsDataURL(input.files[0]);
+    }
+}
+</script>
+}

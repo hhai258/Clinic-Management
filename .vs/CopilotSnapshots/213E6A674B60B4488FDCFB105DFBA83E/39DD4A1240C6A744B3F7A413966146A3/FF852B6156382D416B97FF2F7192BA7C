@@ -1,0 +1,50 @@
+﻿using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
+using ClinicManagement.Data;
+using ClinicManagement.Models;
+using System.Diagnostics;
+
+namespace ClinicManagement.Controllers
+{
+    public class HomeController : Controller
+    {
+        private readonly ApplicationDbContext _context;
+        public HomeController(ApplicationDbContext context) { _context = context; }
+
+        public IActionResult Index()
+        {
+            ViewBag.TotalDoctors = _context.Doctors.Count();
+            ViewBag.TotalPatients = _context.Users.Count(u => u.Role == "Patient");
+            ViewBag.TotalAppointments = _context.Appointments.Count();
+            ViewBag.TotalSpecialties = _context.Specialties.Count();
+            ViewBag.Specialties = _context.Specialties.Include(s => s.Doctors).ToList();
+            ViewBag.FeaturedDoctors = _context.Doctors
+                .Include(d => d.User).Include(d => d.Specialty)
+                .OrderBy(d => d.DoctorId).Take(6).ToList();
+            return View();
+        }
+
+        public IActionResult SpecialtyDetail(int id)
+        {
+            var specialty = _context.Specialties.Include(s => s.Doctors).FirstOrDefault(s => s.SpecialtyId == id);
+            if (specialty == null) return NotFound();
+            var doctors = _context.Doctors.Include(d => d.User).Include(d => d.Specialty)
+                .Where(d => d.SpecialtyId == id).ToList();
+            ViewBag.Specialty = specialty;
+            ViewBag.Doctors = doctors;
+            return View();
+        }
+
+        [ResponseCache(Duration = 0, Location = ResponseCacheLocation.None, NoStore = true)]
+        public IActionResult Error()
+        {
+            return View(new ErrorViewModel { RequestId = Activity.Current?.Id ?? HttpContext.TraceIdentifier });
+        }
+    }
+
+    public class ErrorViewModel
+    {
+        public string? RequestId { get; set; }
+        public bool ShowRequestId => !string.IsNullOrEmpty(RequestId);
+    }
+}

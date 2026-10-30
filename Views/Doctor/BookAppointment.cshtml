@@ -1,0 +1,254 @@
+@{
+    ViewData["Title"] = "Đặt lịch hẹn";
+    var patients = ViewBag.Patients as List<ClinicManagement.Models.User>;
+    var selectedPatientId = ViewBag.SelectedPatientId as int?;
+}
+
+<div class="page-header">
+    <h2>
+        <div class="icon" style="background:#dbeafe;color:#1d4ed8"><i class="fas fa-calendar-plus"></i></div>
+        Đặt Lịch Hẹn
+    </h2>
+    <div class="d-flex gap-2">
+        <a asp-action="CreatePatient" class="btn btn-success btn-sm">
+            <i class="fas fa-user-plus me-1"></i>Thêm bệnh nhân mới
+        </a>
+        <a asp-action="Index" class="btn btn-outline-secondary btn-sm">
+            <i class="fas fa-arrow-left me-1"></i>Quay lại
+        </a>
+    </div>
+</div>
+
+@if (TempData["SuccessMessage"] != null)
+{
+    <div class="alert alert-success alert-dismissible fade show">
+        <i class="fas fa-check-circle me-2"></i>@TempData["SuccessMessage"]
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+}
+@if (TempData["ErrorMessage"] != null)
+{
+    <div class="alert alert-danger alert-dismissible fade show">
+        <i class="fas fa-exclamation-circle me-2"></i>@TempData["ErrorMessage"]
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+}
+
+<div class="row">
+    <div class="col-lg-7">
+        <div class="card">
+            <div class="card-header">
+                <i class="fas fa-calendar-plus text-primary me-2"></i>Thông tin lịch hẹn
+            </div>
+            <div class="card-body p-4">
+                <div class="alert alert-info d-flex align-items-center gap-2 py-2 mb-4">
+                    <i class="fas fa-user-md text-primary"></i>
+                    <span>Bác sĩ: <strong>@ViewBag.DoctorName</strong></span>
+                    <span class="badge bg-primary ms-auto">Bác sĩ hiện tại</span>
+                </div>
+
+                <form asp-action="BookAppointment" method="post" id="bookForm">
+                    @Html.AntiForgeryToken()
+
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold">Bệnh nhân <span class="text-danger">*</span></label>
+                        <select name="patientId" class="form-select" required id="patientSel">
+                            <option value="">-- Chọn bệnh nhân --</option>
+                            @if (patients != null)
+                            {
+                                @foreach (var p in patients)
+                                {
+                                    if (selectedPatientId == p.UserId)
+                                    {
+                                        <option value="@p.UserId" selected="selected">@p.FullName — @p.PhoneNumber</option>
+                                    }
+                                    else
+                                    {
+                                        <option value="@p.UserId">@p.FullName — @p.PhoneNumber</option>
+                                    }
+                                }
+                            }
+                        </select>
+                        <small class="text-muted">Không có? <a asp-action="CreatePatient">Thêm bệnh nhân mới</a></small>
+                    </div>
+
+                    <div id="patientInfoCard" class="card mb-3 p-3" style="display:none;background:#f0fdf4;border:1.5px solid #bbf7d0">
+                        <div class="row">
+                            <div class="col-6 small"><i class="fas fa-birthday-cake text-success me-1"></i><span id="pDob">-</span></div>
+                            <div class="col-6 small"><i class="fas fa-venus-mars text-info me-1"></i><span id="pGender">-</span></div>
+                            <div class="col-12 mt-1 small"><i class="fas fa-notes-medical text-warning me-1"></i><span id="pHistory">Không có tiền sử</span></div>
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label fw-semibold">Ngày hẹn <span class="text-danger">*</span></label>
+                            <input type="date" name="appointmentDate" class="form-control" required id="dateInput"
+                                   min="@DateTime.Today.ToString("yyyy-MM-dd")"
+                                   value="@DateTime.Today.ToString("yyyy-MM-dd")" />
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label fw-semibold">Giờ hẹn <span class="text-danger">*</span></label>
+                            <div id="timeSlotArea">
+                                <div class="text-muted small py-2"><i class="fas fa-info-circle me-1"></i>Chọn ngày để xem giờ trống</div>
+                            </div>
+                            <input type="hidden" name="appointmentTime" id="timeValue" />
+                            <div id="timeError" class="text-danger small" style="display:none">Vui lòng chọn giờ hẹn</div>
+                        </div>
+                    </div>
+
+                    <div class="mb-4">
+                        <label class="form-label fw-semibold">Lý do khám <span class="text-danger">*</span></label>
+                        <textarea name="reason" class="form-control" rows="3" required
+                                  placeholder="Nhập lý do, triệu chứng bệnh nhân..."></textarea>
+                    </div>
+
+                    <div class="d-flex gap-2">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-calendar-check me-1"></i>Xác nhận đặt lịch
+                        </button>
+                        <a asp-action="Index" class="btn btn-outline-secondary">Hủy</a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-5">
+        <div class="card">
+            <div class="card-header">
+                <i class="fas fa-calendar-day text-warning me-2"></i>Lịch của tôi hôm nay
+            </div>
+            <div class="card-body p-0">
+                @{
+                    var todayApts = ViewBag.TodayAppointments as List<ClinicManagement.Models.Appointment>;
+                }
+                @if (todayApts == null || !todayApts.Any())
+                {
+                    <div class="text-center py-4 text-muted">
+                        <i class="fas fa-calendar-check fa-2x mb-2 d-block opacity-25"></i>Chưa có lịch hôm nay
+                    </div>
+                }
+                else
+                {
+                    <div class="list-group list-group-flush">
+                        @foreach (var a in todayApts)
+                        {
+                            <div class="list-group-item py-2">
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <span class="badge bg-light text-dark border fw-bold">@a.AppointmentTime</span>
+                                    @if (a.Status == "Đã đặt")
+                                    {
+                                        <span class="badge bg-warning text-dark">Chờ khám</span>
+                                    }
+                                    else
+                                    {
+                                        <span class="badge bg-success">Đã khám</span>
+                                    }
+                                </div>
+                                <div class="fw-semibold mt-1">@(a.Patient != null ? a.Patient.FullName : "")</div>
+                                <div class="text-muted small">@a.Reason</div>
+                            </div>
+                        }
+                    </div>
+                }
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.time-slot-grid { display:flex; flex-wrap:wrap; gap:8px; margin-top:4px; }
+.ts-btn { padding:6px 14px; border:2px solid #dbeafe; border-radius:8px; background:#fff; cursor:pointer; font-size:.875rem; font-weight:500; color:#1d4ed8; }
+.ts-btn:hover { background:#dbeafe; }
+.ts-btn.selected { background:#1d4ed8; color:#fff; border-color:#1d4ed8; }
+.ts-btn.booked { background:#f3f4f6; color:#9ca3af; border-color:#e5e7eb; cursor:not-allowed; text-decoration:line-through; }
+</style>
+
+@section Scripts {
+<script>
+var patientData = {};
+@if (patients != null)
+{
+    foreach (var p in patients)
+    {
+        var hist = string.IsNullOrEmpty(p.MedicalHistory) ? "" : p.MedicalHistory.Replace("'", "").Replace("\n", " ").Replace("\r", "");
+        var dob = p.DateOfBirth.ToString("yyyy-MM-dd");
+        <text>patientData[@p.UserId] = { dob: '@dob', gender: '@p.Gender', history: '@hist' };
+</text>
+    }
+}
+
+document.getElementById('patientSel').addEventListener('change', function() {
+    var id = this.value;
+    var card = document.getElementById('patientInfoCard');
+    if (id && patientData[id]) {
+        var d = patientData[id];
+        var dob = new Date(d.dob);
+        var age = new Date().getFullYear() - dob.getFullYear();
+        document.getElementById('pDob').textContent = dob.toLocaleDateString('vi-VN') + ' (' + age + ' tuoi)';
+        document.getElementById('pGender').textContent = d.gender;
+        document.getElementById('pHistory').textContent = d.history || 'Khong co tien su';
+        card.style.display = 'block';
+    } else {
+        card.style.display = 'none';
+    }
+});
+
+(function() {
+    var sel = document.getElementById('patientSel');
+    if (sel.value) { sel.dispatchEvent(new Event('change')); }
+})();
+
+function loadSlots() {
+    var date = document.getElementById('dateInput').value;
+    var area = document.getElementById('timeSlotArea');
+    document.getElementById('timeValue').value = '';
+    if (!date) {
+        area.innerHTML = '<div class="text-muted small py-2">Chon ngay de xem gio trong</div>';
+        return;
+    }
+    area.innerHTML = '<div class="text-muted small py-2">Dang tai...</div>';
+    fetch('/Doctor/GetAvailableTimeSlots?date=' + date)
+        .then(function(r) { return r.json(); })
+        .then(function(available) {
+            var all = ['08:00','09:00','10:00','11:00','13:00','14:00','15:00','16:00','17:00'];
+            var html = '<div class="time-slot-grid">';
+            for (var i = 0; i < all.length; i++) {
+                var s = all[i];
+                var ok = available.indexOf(s) >= 0;
+                if (ok) {
+                    html += '<div class="ts-btn" onclick="pickSlot(this,\'' + s + '\')">' + s + '</div>';
+                } else {
+                    html += '<div class="ts-btn booked" title="Da co lich">' + s + '</div>';
+                }
+            }
+            html += '</div>';
+            html += '<small class="text-muted mt-1 d-block">';
+            html += '<span style="display:inline-block;width:12px;height:12px;background:#1d4ed8;border-radius:2px;margin-right:4px"></span>Còn trống &nbsp;';
+            html += '<span style="display:inline-block;width:12px;height:12px;background:#e5e7eb;border-radius:2px;margin-right:4px"></span>Đã đặt';
+            html += '</small>';
+            area.innerHTML = html;
+        });
+}
+
+function pickSlot(el, val) {
+    var btns = document.querySelectorAll('.ts-btn.selected');
+    for (var i = 0; i < btns.length; i++) { btns[i].classList.remove('selected'); }
+    el.classList.add('selected');
+    document.getElementById('timeValue').value = val;
+    document.getElementById('timeError').style.display = 'none';
+}
+
+document.getElementById('dateInput').addEventListener('change', loadSlots);
+loadSlots();
+
+document.getElementById('bookForm').addEventListener('submit', function(e) {
+    if (!document.getElementById('timeValue').value) {
+        e.preventDefault();
+        document.getElementById('timeError').style.display = 'block';
+        document.getElementById('timeSlotArea').scrollIntoView({ behavior: 'smooth' });
+    }
+});
+</script>
+}

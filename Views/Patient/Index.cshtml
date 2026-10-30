@@ -1,0 +1,129 @@
+@model IEnumerable<ClinicManagement.Models.Appointment>
+@{
+    ViewData["Title"] = "Trang cá nhân";
+    var patient = ViewBag.Patient as ClinicManagement.Models.User;
+}
+
+<div class="profile-header mb-4 border-0">
+    <div class="d-flex align-items-center gap-3 flex-wrap">
+        <div class="profile-avatar-placeholder" style="background: linear-gradient(135deg, var(--accent), var(--primary)); font-size: 2.2rem; font-weight: 800;">
+            @(patient?.FullName.Substring(0,1).ToUpper())
+        </div>
+        <div>
+            <h3 class="fw-800 text-white mb-1">Chào mừng, @patient?.FullName</h3>
+            <div class="opacity-75 text-sm d-flex flex-wrap gap-3">
+                <span><i class="fas fa-envelope me-1"></i>@patient?.Email</span>
+                <span>·</span>
+                <span><i class="fas fa-phone me-1"></i>@patient?.PhoneNumber</span>
+            </div>
+            @if (!string.IsNullOrEmpty(patient?.Address))
+            {
+                <div class="opacity-60 text-sm mt-1"><i class="fas fa-map-marker-alt me-1"></i>@patient.Address</div>
+            }
+        </div>
+        <div class="ms-md-auto mt-2 mt-md-0">
+            <a asp-action="Profile" class="btn btn-sm text-white border border-opacity-25" style="background: rgba(255,255,255,0.1); border-color: rgba(255,255,255,0.3); border-radius: 10px;">
+                <i class="fas fa-user-edit me-1"></i>Cập nhật hồ sơ
+            </a>
+        </div>
+    </div>
+</div>
+
+<div class="row g-4 mb-4">
+    <div class="col-sm-4">
+        <div class="stat-card blue">
+            <div class="stat-icon"><i class="fas fa-calendar-alt"></i></div>
+            <div class="stat-number">@ViewBag.TotalAppointments</div>
+            <div class="stat-label">Tổng lịch hẹn đặt khám</div>
+            <div class="stat-bg"><i class="fas fa-calendar-alt"></i></div>
+        </div>
+    </div>
+    <div class="col-sm-4">
+        <div class="stat-card amber">
+            <div class="stat-icon"><i class="fas fa-hourglass-half"></i></div>
+            <div class="stat-number">@ViewBag.TotalWaiting</div>
+            <div class="stat-label">Đang chờ khám bệnh</div>
+            <div class="stat-bg"><i class="fas fa-hourglass-half"></i></div>
+        </div>
+    </div>
+    <div class="col-sm-4">
+        <div class="stat-card green">
+            <div class="stat-icon"><i class="fas fa-check-circle"></i></div>
+            <div class="stat-number">@ViewBag.TotalDone</div>
+            <div class="stat-label">Lịch khám hoàn thành</div>
+            <div class="stat-bg"><i class="fas fa-check-circle"></i></div>
+        </div>
+    </div>
+</div>
+
+<div class="row g-4 mb-4">
+    <div class="col-md-4">
+        <h5 class="fw-800 text-dark mb-3"><i class="fas fa-link text-primary me-2"></i>Truy Cập Nhanh</h5>
+        <div class="d-flex flex-column gap-3">
+            <a asp-action="Doctors" class="quick-action glass-card shadow-sm border-0">
+                <div class="qa-icon" style="background:rgba(37,99,235,0.08);color:#2563eb"><i class="fas fa-calendar-plus"></i></div>
+                <div>
+                    <div class="fw-700 mb-1">Đặt lịch khám mới</div>
+                    <small class="text-muted">Chọn chuyên khoa & bác sĩ</small>
+                </div>
+            </a>
+            <a asp-action="MyAppointments" class="quick-action glass-card shadow-sm border-0">
+                <div class="qa-icon" style="background:rgba(16,185,129,0.08);color:#10b981"><i class="fas fa-calendar-check"></i></div>
+                <div>
+                    <div class="fw-700 mb-1">Lịch hẹn của tôi</div>
+                    <small class="text-muted">Theo dõi lịch hẹn đặt khám</small>
+                </div>
+            </a>
+            <a asp-action="MedicalHistory" class="quick-action glass-card shadow-sm border-0">
+                <div class="qa-icon" style="background:rgba(245,158,11,0.08);color:#d97706"><i class="fas fa-file-medical"></i></div>
+                <div>
+                    <div class="fw-700 mb-1">Lịch sử khám bệnh</div>
+                    <small class="text-muted">Xem đơn thuốc & chẩn đoán</small>
+                </div>
+            </a>
+            <a asp-action="Profile" class="quick-action glass-card shadow-sm border-0">
+                <div class="qa-icon" style="background:rgba(139,92,246,0.08);color:#7c3aed"><i class="fas fa-user-edit"></i></div>
+                <div>
+                    <div class="fw-700 mb-1">Chỉnh sửa hồ sơ</div>
+                    <small class="text-muted">Cập nhật thông tin liên lạc</small>
+                </div>
+            </a>
+        </div>
+    </div>
+    <div class="col-md-8">
+        <h5 class="fw-800 text-dark mb-3"><i class="fas fa-clock text-primary me-2"></i>Lịch Hẹn Sắp Tới</h5>
+        @if (!Model.Any())
+        {
+            <div class="card p-5 text-center text-muted border-0 shadow-sm">
+                <i class="fas fa-calendar-plus fa-3x mb-3 text-primary opacity-25 d-block"></i>
+                <div class="mb-4">Bạn hiện chưa có lịch hẹn khám nào sắp tới</div>
+                <a asp-action="Doctors" class="btn btn-primary px-4 py-2" style="border-radius:10px">Đặt lịch khám ngay</a>
+            </div>
+        }
+        else
+        {
+            @foreach (var a in Model)
+            {
+                int daysLeft = (a.AppointmentDate - DateTime.Today).Days;
+                <div class="appointment-item d-flex justify-content-between align-items-center shadow-sm border-0 mb-3">
+                    <div class="d-flex align-items-center gap-3">
+                        <div class="text-center p-2 rounded" style="background:var(--primary-light); min-width:64px;">
+                            <div class="fw-800 fs-3 text-primary" style="line-height:1">@a.AppointmentDate.Day</div>
+                            <div class="text-primary text-sm fw-600">Th @a.AppointmentDate.Month</div>
+                        </div>
+                        <div>
+                            <div class="fw-800 text-dark mb-1">@a.Doctor.Degree. @a.Doctor.User.FullName</div>
+                            <div class="text-sm text-primary fw-600 mb-1">@a.Doctor.Specialty.SpecialtyName · Khung giờ: @a.AppointmentTime</div>
+                            <div class="text-sm text-muted"><i class="fas fa-notes-medical me-1 text-warning"></i>Triệu chứng: @(a.Reason.Length > 60 ? a.Reason.Substring(0,60)+"..." : a.Reason)</div>
+                        </div>
+                    </div>
+                    <div class="text-end">
+                        @if (daysLeft == 0){<span class="badge bg-danger px-3 py-2" style="border-radius:30px">Hôm nay!</span>}
+                        else if(daysLeft == 1){<span class="badge bg-warning text-dark px-3 py-2" style="border-radius:30px">Ngày mai</span>}
+                        else{<span class="badge bg-light border text-muted px-3 py-2" style="border-radius:30px">Còn @daysLeft ngày</span>}
+                    </div>
+                </div>
+            }
+        }
+    </div>
+</div>

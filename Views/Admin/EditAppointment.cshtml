@@ -1,0 +1,130 @@
+@model ClinicManagement.Models.Appointment
+@{
+    ViewData["Title"] = "Sửa Lịch hẹn";
+    var patients = ViewBag.Patients as IEnumerable<ClinicManagement.Models.User>;
+    var doctors = ViewBag.Doctors as IEnumerable<ClinicManagement.Models.Doctor>;
+    var timeSlots = ViewBag.TimeSlots as string[];
+    var statuses = ViewBag.Statuses as string[];
+}
+
+<div class="page-header">
+    <h2><div class="icon" style="background:#ede9fe;color:#5b21b6"><i class="fas fa-calendar-edit"></i></div>Sửa Lịch hẹn #@Model.AppointmentId</h2>
+    <a asp-action="Appointments" class="btn btn-outline-secondary btn-sm"><i class="fas fa-arrow-left me-1"></i>Quay lại</a>
+</div>
+
+<div class="card" style="max-width:700px">
+    <div class="card-body p-4">
+        <form method="post" asp-action="EditAppointment">
+            @Html.AntiForgeryToken()
+            <input type="hidden" name="appointmentId" value="@Model.AppointmentId" />
+
+            <div class="row g-3">
+                <div class="col-md-6">
+                    <label class="form-label">Bệnh nhân *</label>
+                    <select name="patientId" class="form-select" required>
+                        <option value="">-- Chọn bệnh nhân --</option>
+                        @foreach (var p in patients!)
+                        {
+                            if (p.UserId == Model.PatientId)
+                            {
+                                <option value="@p.UserId" selected="selected">@p.FullName (@p.PhoneNumber)</option>
+                            }
+                            else
+                            {
+                                <option value="@p.UserId">@p.FullName (@p.PhoneNumber)</option>
+                            }
+                        }
+                    </select>
+                </div>
+
+                <div class="col-md-6">
+                    <label class="form-label">Bác sĩ *</label>
+                    <select name="doctorId" class="form-select" required>
+                        <option value="">-- Chọn bác sĩ --</option>
+                        @foreach (var d in doctors!)
+                        {
+                            if (d.DoctorId == Model.DoctorId)
+                            {
+                                <option value="@d.DoctorId" selected="selected">@d.Degree. @d.User.FullName (@d.Specialty.SpecialtyName)</option>
+                            }
+                            else
+                            {
+                                <option value="@d.DoctorId">@d.Degree. @d.User.FullName (@d.Specialty.SpecialtyName)</option>
+                            }
+                        }
+                    </select>
+                </div>
+
+                <div class="col-md-4">
+                    <label class="form-label">Ngày khám *</label>
+                    <input type="date" name="appointmentDate" class="form-control"
+                           value="@Model.AppointmentDate.ToString("yyyy-MM-dd")" required />
+                </div>
+
+                <div class="col-md-4">
+                    <label class="form-label">Giờ khám *</label>
+                    <select name="appointmentTime" class="form-select" required>
+                        <option value="">-- Chọn giờ --</option>
+                        @foreach (var t in timeSlots!)
+                        {
+                            if (t == Model.AppointmentTime)
+                            {
+                                <option value="@t" selected="selected">@t</option>
+                            }
+                            else
+                            {
+                                <option value="@t">@t</option>
+                            }
+                        }
+                    </select>
+                </div>
+
+                <div class="col-md-4">
+                    <label class="form-label">Trạng thái *</label>
+                    <select name="status" class="form-select" required>
+                        @{
+                            var statusLabels = new Dictionary<string,string>
+                            {
+                                {"Đã đặt","Chờ khám"},
+                                {"Đã khám","Đã khám xong"},
+                                {"Đã hủy","Đã hủy"}
+                            };
+                        }
+                        @foreach (var s in statuses!)
+                        {
+                            if (s == Model.Status)
+                            {
+                                <option value="@s" selected="selected">@(statusLabels.ContainsKey(s) ? statusLabels[s] : s)</option>
+                            }
+                            else
+                            {
+                                <option value="@s">@(statusLabels.ContainsKey(s) ? statusLabels[s] : s)</option>
+                            }
+                        }
+                    </select>
+                </div>
+
+                <div class="col-12">
+                    <label class="form-label">Lý do khám *</label>
+                    <textarea name="reason" class="form-control" rows="3" required>@Model.Reason</textarea>
+                </div>
+            </div>
+
+            <div class="d-flex gap-2 mt-4">
+                <button type="submit" class="btn btn-warning text-white">
+                    <i class="fas fa-save me-1"></i>Lưu thay đổi
+                </button>
+                <a asp-action="Appointments" class="btn btn-outline-secondary">Hủy</a>
+                <button type="button" class="btn btn-outline-danger ms-auto"
+                        onclick="if(confirm('Xóa lịch hẹn này?')) document.getElementById('deleteAppointmentForm').submit();">
+                    <i class="fas fa-trash me-1"></i>Xóa
+                </button>
+            </div>
+        </form>
+
+        <form asp-action="DeleteAppointment" method="post" id="deleteAppointmentForm" style="display:none">
+            @Html.AntiForgeryToken()
+            <input type="hidden" name="id" value="@Model.AppointmentId" />
+        </form>
+    </div>
+</div>

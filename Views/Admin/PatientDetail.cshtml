@@ -1,0 +1,176 @@
+@model ClinicManagement.Models.User
+@{
+    ViewData["Title"] = "Chi tiết Bệnh nhân";
+    var age = DateTime.Today.Year - Model.DateOfBirth.Year;
+    var totalAppts = Model.Appointments?.Count() ?? 0;
+    var doneAppts = Model.Appointments?.Count(a => a.Status == "Da kham" || a.Status == "Đã khám") ?? 0;
+    var pendingAppts = Model.Appointments?.Count(a => a.Status == "Da dat" || a.Status == "Đã đặt") ?? 0;
+}
+
+<div class="page-header">
+    <div class="d-flex align-items-center gap-3">
+        <div class="avatar" style="width:52px;height:52px;font-size:1.3rem;background:#dbeafe;color:#2563eb;">
+            @Model.FullName.Substring(0, 1).ToUpper()
+        </div>
+        <div>
+            <h2 class="mb-0" style="font-size:1.4rem;">@Model.FullName</h2>
+            <small class="text-muted">@@@Model.Username &bull; Bệnh nhân</small>
+        </div>
+    </div>
+    <div class="d-flex gap-2">
+        <a asp-action="EditPatient" asp-route-id="@Model.UserId" class="btn btn-warning text-white btn-sm">
+            <i class="fas fa-edit me-1"></i>Chỉnh sửa
+        </a>
+        <a asp-action="Patients" class="btn btn-outline-secondary btn-sm">
+            <i class="fas fa-arrow-left me-1"></i>Quay lại
+        </a>
+    </div>
+</div>
+
+<div class="row g-3 mb-3">
+    <div class="col-sm-4">
+        <div class="stat-card blue" style="padding:1rem;">
+            <div class="stat-number" style="font-size:1.8rem;">@totalAppts</div>
+            <div class="stat-label">Tổng lịch hẹn</div>
+        </div>
+    </div>
+    <div class="col-sm-4">
+        <div class="stat-card green" style="padding:1rem;">
+            <div class="stat-number" style="font-size:1.8rem;">@doneAppts</div>
+            <div class="stat-label">Đã khám</div>
+        </div>
+    </div>
+    <div class="col-sm-4">
+        <div class="stat-card amber" style="padding:1rem;">
+            <div class="stat-number" style="font-size:1.8rem;">@pendingAppts</div>
+            <div class="stat-label">Chờ khám</div>
+        </div>
+    </div>
+</div>
+
+<div class="row g-3">
+    <div class="col-md-5">
+        <div class="card h-100">
+            <div class="card-header"><i class="fas fa-id-card text-primary me-2"></i>Thông tin cá nhân</div>
+            <div class="card-body">
+                <div class="mb-3">
+                    <label class="text-muted small fw-600 text-uppercase">Họ và tên</label>
+                    <div class="fw-600">@Model.FullName</div>
+                </div>
+                <div class="row g-3 mb-3">
+                    <div class="col-6">
+                        <label class="text-muted small fw-600 text-uppercase">Ngày sinh</label>
+                        <div>@Model.DateOfBirth.ToString("dd/MM/yyyy")</div>
+                        <small class="text-muted">(@age tuổi)</small>
+                    </div>
+                    <div class="col-6">
+                        <label class="text-muted small fw-600 text-uppercase">Giới tính</label>
+                        <div>
+                            @if (Model.Gender == "Nam")
+                            { <span class="badge" style="background:#dbeafe;color:#1d4ed8"><i class="fas fa-mars me-1"></i>Nam</span> }
+                            else
+                            { <span class="badge" style="background:#fce7f3;color:#9d174d"><i class="fas fa-venus me-1"></i>Nữ</span> }
+                        </div>
+                    </div>
+                </div>
+                <div class="mb-3">
+                    <label class="text-muted small fw-600 text-uppercase">Số điện thoại</label>
+                    <div><i class="fas fa-phone text-primary me-2"></i>@Model.PhoneNumber</div>
+                </div>
+                <div class="mb-3">
+                    <label class="text-muted small fw-600 text-uppercase">Email</label>
+                    <div><i class="fas fa-envelope text-primary me-2"></i>@Model.Email</div>
+                </div>
+                @if (!string.IsNullOrEmpty(Model.Address))
+                {
+                    <div class="mb-3">
+                        <label class="text-muted small fw-600 text-uppercase">Địa chỉ</label>
+                        <div><i class="fas fa-map-marker-alt text-primary me-2"></i>@Model.Address</div>
+                    </div>
+                }
+                @if (!string.IsNullOrEmpty(Model.EmergencyContact))
+                {
+                    <div class="mb-3">
+                        <label class="text-muted small fw-600 text-uppercase">Liên hệ khẩn cấp</label>
+                        <div><i class="fas fa-phone-square text-danger me-2"></i>@Model.EmergencyContact</div>
+                    </div>
+                }
+                @if (!string.IsNullOrEmpty(Model.MedicalHistory))
+                {
+                    <div class="mb-3">
+                        <label class="text-muted small fw-600 text-uppercase">Tiền sử bệnh</label>
+                        <div class="alert alert-warning py-2 px-3 mb-0">
+                            <i class="fas fa-notes-medical me-2"></i>@Model.MedicalHistory
+                        </div>
+                    </div>
+                }
+                <div>
+                    <label class="text-muted small fw-600 text-uppercase">Ngày tạo tài khoản</label>
+                    <div><i class="fas fa-calendar-alt text-muted me-2"></i>@(Model.CreatedAt?.ToString("dd/MM/yyyy HH:mm") ?? "N/A")</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-7">
+        <div class="card">
+            <div class="card-header d-flex align-items-center justify-content-between">
+                <span><i class="fas fa-calendar-alt text-primary me-2"></i>Lịch sử lịch hẹn</span>
+                <span class="badge bg-primary">@totalAppts</span>
+            </div>
+            <div class="card-body p-0">
+                @if (Model.Appointments == null || !Model.Appointments.Any())
+                {
+                    <div class="text-center py-4 text-muted">
+                        <i class="fas fa-calendar-times fa-2x mb-2 d-block"></i>
+                        Chưa có lịch hẹn nào
+                    </div>
+                }
+                else
+                {
+                    <div class="table-responsive" style="max-height:500px;overflow-y:auto;">
+                        <table class="table table-hover mb-0">
+                            <thead>
+                                <tr>
+                                    <th>Ngày</th>
+                                    <th>Bác sĩ</th>
+                                    <th>Trạng thái</th>
+                                    <th>Kết quả</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var appt in Model.Appointments.OrderByDescending(a => a.AppointmentDate))
+                                {
+                                    <tr>
+                                        <td>
+                                            <div>@appt.AppointmentDate.ToString("dd/MM/yyyy")</div>
+                                            <small class="text-muted">@appt.AppointmentTime</small>
+                                        </td>
+                                        <td>
+                                            <div class="fw-600">@appt.Doctor?.User?.FullName</div>
+                                            <small class="text-muted">@appt.Doctor?.Specialty?.SpecialtyName</small>
+                                        </td>
+                                        <td>
+                                            @if (appt.Status == "Da dat" || appt.Status == "Đã đặt")
+                                            { <span class="badge bg-warning text-dark">Chờ khám</span> }
+                                            else if (appt.Status == "Da kham" || appt.Status == "Đã khám")
+                                            { <span class="badge bg-success">Đã khám</span> }
+                                            else
+                                            { <span class="badge bg-danger">Đã hủy</span> }
+                                        </td>
+                                        <td>
+                                            @if (appt.MedicalRecord != null)
+                                            {
+                                                <span class="badge" style="background:#d1fae5;color:#065f46;font-size:0.7rem;">Có HSBA</span>
+                                            }
+                                        </td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                }
+            </div>
+        </div>
+    </div>
+</div>

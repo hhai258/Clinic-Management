@@ -1,0 +1,160 @@
+@model ClinicManagement.Models.ViewModels.BookAppointmentViewModel
+@{ViewData["Title"] = "Đặt lịch khám";}
+<div class="page-header">
+    <h2><i class="fas fa-calendar-plus me-2 text-primary"></i>Đặt lịch khám</h2>
+    <a asp-action="Doctors" class="btn btn-outline-secondary btn-sm"><i class="fas fa-arrow-left me-1"></i>Quay lại</a>
+</div>
+<div class="row justify-content-center">
+    <div class="col-lg-8">
+        <div class="card glass-card border-0 shadow-sm">
+            <div class="card-header"><i class="fas fa-calendar-plus me-2 text-primary"></i>Thông tin đặt lịch</div>
+            <div class="card-body">
+                <form asp-action="BookAppointment" method="post" id="bookingForm">
+                    @Html.AntiForgeryToken()
+                    @if (!ViewData.ModelState.IsValid)
+                    {
+                        <div asp-validation-summary="All" class="alert alert-danger mb-3 py-2 text-sm"></div>
+                    }
+
+                    <div class="mb-3">
+                        <label class="form-label">Chuyên khoa <span class="text-danger">*</span></label>
+                        <select asp-for="SpecialtyId" class="form-select" id="specialtySelect">
+                            <option value="">-- Chọn chuyên khoa --</option>
+                            @if (Model.Specialties != null)
+                            {@foreach (var s in Model.Specialties){<option value="@s.SpecialtyId">@s.SpecialtyName</option>}}
+                        </select>
+                    </div>
+
+                    <!-- Doctor card preview -->
+                    <div id="doctorPreview" class="card mb-3 p-3 border-0" style="display:none; background:rgba(37,99,235,0.06); border-radius:var(--radius-sm);">
+                        <div class="d-flex align-items-center gap-3">
+                            <img id="doctorPhoto" src="" style="width:64px;height:64px;border-radius:50%;object-fit:cover;border: 2px solid var(--primary);" onerror="this.style.display='none'" />
+                            <div id="doctorPhotoPlaceholder" style="width:64px;height:64px;border-radius:50%;background:linear-gradient(135deg,var(--primary-light),var(--primary-light-hover));display:flex;align-items:center;justify-content:center;font-size:1.5rem;color:var(--primary)"><i class="fas fa-user-md"></i></div>
+                            <div>
+                                <div class="fw-700 text-dark" id="selectedDoctorName">-</div>
+                                <div class="text-sm text-muted" id="selectedDoctorInfo">-</div>
+                                <div class="text-sm" id="selectedDoctorFee" style="color:var(--secondary);font-weight:600"></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">Bác sĩ <span class="text-danger">*</span></label>
+                        <select asp-for="DoctorId" class="form-select" id="doctorSelect">
+                            <option value="">-- Chọn chuyên khoa trước --</option>
+                        </select>
+                        <span asp-validation-for="DoctorId" class="text-danger small"></span>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Ngày khám <span class="text-danger">*</span></label>
+                            <input asp-for="AppointmentDate" class="form-control" type="date" id="dateInput" />
+                            <span asp-validation-for="AppointmentDate" class="text-danger small"></span>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Giờ khám <span class="text-danger">*</span></label>
+                            <input type="hidden" asp-for="AppointmentTime" id="timeValue" />
+                            <div id="timeSlotContainer">
+                                <div class="text-muted text-sm">Vui lòng chọn bác sĩ và ngày khám trước</div>
+                            </div>
+                            <span asp-validation-for="AppointmentTime" class="text-danger small"></span>
+                        </div>
+                    </div>
+
+                    <div class="mb-4">
+                        <label asp-for="Reason" class="form-label">Lý do khám <span class="text-danger">*</span></label>
+                        <textarea asp-for="Reason" class="form-control" rows="3" placeholder="Mô tả triệu chứng hoặc lý do muốn khám..." required></textarea>
+                        <span asp-validation-for="Reason" class="text-danger small"></span>
+                    </div>
+
+                    <button type="submit" class="btn btn-primary btn-lg w-100" id="submitBtn">
+                        <i class="fas fa-calendar-check me-2"></i>Xác nhận đặt lịch
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+<partial name="_ValidationScriptsPartial" />
+<script>
+$(function() {
+    var today = new Date().toISOString().split('T')[0];
+    var tomorrow = new Date(Date.now()+86400000).toISOString().split('T')[0];
+    $('#dateInput').attr('min', today).val(tomorrow);
+
+    var allSlots = ['08:00','09:00','10:00','11:00','13:00','14:00','15:00','16:00','17:00'];
+    var preselectedDoctorId = '@Model.DoctorId';
+
+    $('#specialtySelect').change(function() {
+        var sid = $(this).val();
+        $('#doctorSelect').html('<option value="">Đang tải...</option>');
+        if (!sid) { $('#doctorSelect').html('<option value="">-- Chọn chuyên khoa trước --</option>'); $('#doctorPreview').hide(); return; }
+        $.getJSON('/Patient/GetDoctorsBySpecialty', {specialtyId: sid}, function(docs) {
+            $('#doctorSelect').html('<option value="">-- Chọn bác sĩ --</option>');
+            $.each(docs, function(i, d) {
+                $('#doctorSelect').append($('<option>', {
+                    value: d.doctorId,
+                    text: d.degree+'. '+d.fullName+' — '+parseInt(d.examinationFee).toLocaleString()+'₫',
+                    selected: (d.doctorId == preselectedDoctorId),
+                    'data-photo': d.photoUrl||'',
+                    'data-name': d.degree+'. '+d.fullName,
+                    'data-info': d.experience+' năm kinh nghiệm',
+                    'data-fee': parseInt(d.examinationFee).toLocaleString()+'₫'
+                }));
+            });
+            // Trigger doctor change after populating
+            if ($('#doctorSelect').val()) {
+                $('#doctorSelect').trigger('change');
+            }
+        });
+    });
+
+    $('#doctorSelect').change(function() {
+        var opt = $('option:selected', this);
+        if ($(this).val()) {
+            $('#selectedDoctorName').text(opt.attr('data-name'));
+            $('#selectedDoctorInfo').text(opt.attr('data-info'));
+            $('#selectedDoctorFee').text('Giá khám: '+opt.attr('data-fee'));
+            var photo = opt.attr('data-photo');
+            if (photo) { $('#doctorPhoto').attr('src', photo).show(); $('#doctorPhotoPlaceholder').hide(); }
+            else { $('#doctorPhoto').hide(); $('#doctorPhotoPlaceholder').show(); }
+            $('#doctorPreview').show();
+        } else { $('#doctorPreview').hide(); }
+        loadSlots();
+    });
+
+    $('#dateInput').change(loadSlots);
+
+    function loadSlots() {
+        var did = $('#doctorSelect').val();
+        var date = $('#dateInput').val();
+        if (!did || !date) { $('#timeSlotContainer').html('<div class="text-muted text-sm">Chọn bác sĩ và ngày khám trước</div>'); $('#timeValue').val(''); return; }
+        $('#timeSlotContainer').html('<div class="text-muted text-sm">Đang tải...</div>');
+        $.getJSON('/Patient/GetAvailableTimeSlots', {doctorId: did, date: date}, function(available) {
+            var html = '<div class="time-slot-grid">';
+            $.each(allSlots, function(i, slot) {
+                var avail = available.indexOf(slot) >= 0;
+                html += '<div class="time-slot-btn '+(avail?'':'booked')+'" '+(avail?'onclick="selectSlot(this,\''+slot+'\')"':'title="Đã đặt"')+'>'+slot+'</div>';
+            });
+            html += '</div>';
+            $('#timeSlotContainer').html(html);
+            $('#timeValue').val('');
+        });
+    }
+
+    // Trigger specialty select change if it is pre-selected on load
+    if ($('#specialtySelect').val()) {
+        $('#specialtySelect').trigger('change');
+    }
+});
+
+function selectSlot(el, val) {
+    $('.time-slot-btn.selected').removeClass('selected');
+    $(el).addClass('selected');
+    $('#timeValue').val(val);
+}
+</script>
+}

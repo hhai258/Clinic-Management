@@ -1,0 +1,39 @@
+﻿using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations.Schema;
+
+namespace ClinicManagement.Models
+{
+    public class Appointment
+    {
+        [Key]
+        public int AppointmentId { get; set; }
+
+        [Required]
+        [ForeignKey("Patient")]
+        public int PatientId { get; set; }
+
+        [Required]
+        [ForeignKey("Doctor")]
+        public int DoctorId { get; set; }
+
+        [Required(ErrorMessage = "Ngày hẹn là bắt buộc")]
+        [DataType(DataType.Date)]
+        public DateTime AppointmentDate { get; set; }
+
+        [Required(ErrorMessage = "Giờ hẹn là bắt buộc")]
+        public string AppointmentTime { get; set; } // 8h, 9h, 10h, 13h, 14h, 15h, 16h, 17h
+
+        [Required(ErrorMessage = "Lý do khám là bắt buộc")]
+        [StringLength(500)]
+        public string Reason { get; set; }
+
+        [Required]
+        [StringLength(20)]
+        public string Status { get; set; } // Đã đặt, Đã khám, Đã hủy
+
+        // Navigation properties
+        public User Patient { get; set; }
+        public Doctor Doctor { get; set; }
+        public MedicalRecord? MedicalRecord { get; set; }
+    }
+}

@@ -1,0 +1,231 @@
+﻿using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
+using ClinicManagement.Data;
+using ClinicManagement.Models;
+using ClinicManagement.Models.ViewModels;
+using System.Security.Claims;
+
+namespace ClinicManagement.Controllers
+{
+    [Authorize(Roles = "Doctor")]
+    public class DoctorController : Controller
+    {
+        private readonly ApplicationDbContext _context;
+        private readonly IWebHostEnvironment _env;
+
+        public DoctorController(ApplicationDbContext context, IWebHostEnvironment env)
+        {
+            _context = context;
+            _env = env;
+        }
+
+        private int GetDoctorId()
+        {
+            var userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+            return _context.Doctors.FirstOrDefault(d => d.UserId == userId)?.DoctorId ?? 0;
+        }
+
+        private Doctor? GetCurrentDoctor()
+        {
+            var userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+            return _context.Doctors.Include(d => d.User).Include(d => d.Specialty).FirstOrDefault(d => d.UserId == userId);
+        }
+
+        public IActionResult Index()
+        {
+            var doctor = GetCurrentDoctor();
+            if (doctor == null) return NotFound();
+
+            var todayAppointments = _context.Appointments
+                .Include(a => a.Patient)
+                .Where(a => a.DoctorId == doctor.DoctorId && a.AppointmentDate == DateTime.Today)
+                .OrderBy(a => a.AppointmentTime).ToList();
+
+            ViewBag.Doctor = doctor;
+            ViewBag.WaitingCount = todayAppointments.Count(a => a.Status == "Đã đặt" || a.Status == "Da dat");
+            ViewBag.DoneCount = todayAppointments.Count(a => a.Status == "Đã khám" || a.Status == "Da kham");
+            ViewBag.TotalThisMonth = _context.Appointments.Count(a => a.DoctorId == doctor.DoctorId && a.AppointmentDate.Month == DateTime.Today.Month && a.AppointmentDate.Year == DateTime.Today.Year);
+            ViewBag.TotalAll = _context.Appointments.Count(a => a.DoctorId == doctor.DoctorId);
+            return View(todayAppointments);
+        }
+
+        public IActionResult MyAppointments(string status = "")
+        {
+            var doctorId = GetDoctorId();
+            var query = _context.Appointments.Include(a => a.Patient)
+                .Where(a => a.DoctorId == doctorId).AsQueryable();
+            if (!string.IsNullOrEmpty(status)) query = query.Where(a => a.Status == status);
+            var appointments = query.OrderByDescending(a => a.AppointmentDate).ThenByDescending(a => a.AppointmentTime).ToList();
+            ViewBag.Status = status;
+            return View(appointments);
+        }
+
+        public IActionResult Examine(int id)
+        {
+            var appointment = _context.Appointments.Include(a => a.Patient).FirstOrDefault(a => a.AppointmentId == id);
+            if (appointment == null || (appointment.Status != "Đã đặt" && appointment.Status != "Da dat")) return NotFound();
+            var model = new ExaminationViewModel { AppointmentId = id, Appointment = appointment };
+            return View(model);
+        }
+
+        [HttpPost][ValidateAntiForgeryToken]
+        public IActionResult Examine(ExaminationViewModel model)
+        {
+            ModelState.Remove("Appointment");
+            if (ModelState.IsValid)
+            {
+                var appointment = _context.Appointments.Find(model.AppointmentId);
+                if (appointment != null)
+                {
+                    _context.MedicalRecords.Add(new MedicalRecord { AppointmentId = model.AppointmentId, Symptoms = model.Symptoms, Diagnosis = model.Diagnosis, Advice = model.Advice, ExaminationDate = DateTime.Today });
+                    appointment.Status = "Đã khám";
+                    _context.SaveChanges();
+                    TempData["SuccessMessage"] = "Lưu kết quả khám thành công!";
+                    return RedirectToAction("Index");
+                }
+            }
+            model.Appointment = _context.Appointments.Include(a => a.Patient).FirstOrDefault(a => a.AppointmentId == model.AppointmentId);
+            return View(model);
+        }
+
+        public IActionResult PatientHistory(int patientId)
+        {
+            var records = _context.MedicalRecords
+                .Include(m => m.Appointment).ThenInclude(a => a.Patient)
+                .Where(m => m.Appointment.PatientId == patientId)
+                .OrderByDescending(m => m.ExaminationDate).ToList();
+            ViewBag.Patient = _context.Users.Find(patientId);
+            return View(records);
+        }
+
+        // ==================== THÊM BỆNH NHÂN ====================
+        [HttpGet]
+        public IActionResult CreatePatient()
+        {
+            return View();
+        }
+
+        [HttpPost][ValidateAntiForgeryToken]
+        public async Task<IActionResult> CreatePatient(CreatePatientViewModel model)
+        {
+            if (ModelState.IsValid)
+            {
+                if (await _context.Users.AnyAsync(u => u.Username == model.Username))
+                { ModelState.AddModelError("Username", "Tên đăng nhập đã tồn tại"); return View(model); }
+                if (await _context.Users.AnyAsync(u => u.Email == model.Email))
+                { ModelState.AddModelError("Email", "Email đã được sử dụng"); return View(model); }
+
+                var user = new User
+                {
+                    Username = model.Username, Password = model.Password,
+                    FullName = model.FullName, DateOfBirth = model.DateOfBirth,
+                    Gender = model.Gender, PhoneNumber = model.PhoneNumber,
+                    Email = model.Email, Address = model.Address,
+                    EmergencyContact = model.EmergencyContact, MedicalHistory = model.MedicalHistory,
+                    Role = "Patient", CreatedAt = DateTime.Now
+                };
+                _context.Users.Add(user);
+                await _context.SaveChangesAsync();
+                TempData["SuccessMessage"] = $"Thêm bệnh nhân '{user.FullName}' thành công!";
+                TempData["NewPatientId"] = user.UserId;
+                return RedirectToAction(nameof(BookAppointment), new { patientId = user.UserId });
+            }
+            return View(model);
+        }
+
+        // ==================== ĐẶT LỊCH HẸN ====================
+        [HttpGet]
+        public IActionResult BookAppointment(int? patientId)
+        {
+            var doctorId = GetDoctorId();
+            var doctor = GetCurrentDoctor();
+
+            ViewBag.Patients = _context.Users
+                .Where(u => u.Role == "Patient")
+                .OrderBy(u => u.FullName).ToList();
+            ViewBag.DoctorId = doctorId;
+            ViewBag.DoctorName = doctor?.User?.FullName;
+            ViewBag.TimeSlots = new[] { "08:00", "09:00", "10:00", "11:00", "13:00", "14:00", "15:00", "16:00", "17:00" };
+            ViewBag.SelectedPatientId = patientId;
+            ViewBag.TodayAppointments = _context.Appointments
+                .Include(a => a.Patient)
+                .Where(a => a.DoctorId == doctorId && a.AppointmentDate == DateTime.Today)
+                .OrderBy(a => a.AppointmentTime).ToList();
+            return View();
+        }
+
+        [HttpPost][ValidateAntiForgeryToken]
+        public IActionResult BookAppointment(int patientId, DateTime appointmentDate, string appointmentTime, string reason)
+        {
+            var doctorId = GetDoctorId();
+
+            if (patientId == 0 || appointmentDate == default || string.IsNullOrEmpty(appointmentTime) || string.IsNullOrEmpty(reason))
+            { TempData["ErrorMessage"] = "Vui lòng điền đầy đủ thông tin!"; return RedirectToAction(nameof(BookAppointment)); }
+
+            if (appointmentDate.Date < DateTime.Today)
+            { TempData["ErrorMessage"] = "Ngày hẹn không được là ngày trong quá khứ!"; return RedirectToAction(nameof(BookAppointment)); }
+
+            var conflict = _context.Appointments.Any(a =>
+                a.DoctorId == doctorId && a.AppointmentDate == appointmentDate.Date &&
+                a.AppointmentTime == appointmentTime && a.Status != "Đã hủy");
+            if (conflict)
+            { TempData["ErrorMessage"] = "Khung giờ này đã có lịch! Vui lòng chọn giờ khác."; return RedirectToAction(nameof(BookAppointment)); }
+
+            _context.Appointments.Add(new Appointment
+            {
+                PatientId = patientId, DoctorId = doctorId,
+                AppointmentDate = appointmentDate.Date,
+                AppointmentTime = appointmentTime,
+                Reason = reason, Status = "Đã đặt"
+            });
+            _context.SaveChanges();
+            TempData["SuccessMessage"] = "Đặt lịch hẹn thành công!";
+            return RedirectToAction(nameof(Index));
+        }
+
+        [HttpGet]
+        public JsonResult GetAvailableTimeSlots(DateTime date)
+        {
+            var doctorId = GetDoctorId();
+            var allSlots = new[] { "08:00", "09:00", "10:00", "11:00", "13:00", "14:00", "15:00", "16:00", "17:00" };
+            var booked = _context.Appointments
+                .Where(a => a.DoctorId == doctorId && a.AppointmentDate == date.Date && a.Status != "Đã hủy")
+                .Select(a => a.AppointmentTime).ToList();
+            return Json(allSlots.Except(booked).ToList());
+        }
+
+        public IActionResult Profile()
+        {
+            var doctor = GetCurrentDoctor();
+            if (doctor == null) return NotFound();
+            return View(doctor);
+        }
+
+        [HttpPost][ValidateAntiForgeryToken]
+        public async Task<IActionResult> UpdateProfile(string fullName, DateTime dateOfBirth, string gender, string phoneNumber, string email, string? bio, string? newPassword, IFormFile? photo)
+        {
+            var doctor = GetCurrentDoctor();
+            if (doctor == null) return NotFound();
+            doctor.User.FullName = fullName;
+            doctor.User.DateOfBirth = dateOfBirth;
+            doctor.User.Gender = gender;
+            doctor.User.PhoneNumber = phoneNumber;
+            doctor.User.Email = email;
+            doctor.Bio = bio;
+            if (!string.IsNullOrEmpty(newPassword)) doctor.User.Password = newPassword;
+            if (photo != null && photo.Length > 0)
+            {
+                var fileName = $"doctor_{doctor.UserId}_{Guid.NewGuid():N}{Path.GetExtension(photo.FileName)}";
+                var savePath = Path.Combine(_env.WebRootPath, "img", "doctors", fileName);
+                Directory.CreateDirectory(Path.GetDirectoryName(savePath)!);
+                using var stream = new FileStream(savePath, FileMode.Create);
+                await photo.CopyToAsync(stream);
+                doctor.PhotoUrl = $"/img/doctors/{fileName}";
+            }
+            await _context.SaveChangesAsync();
+            TempData["SuccessMessage"] = "Cập nhật hồ sơ thành công!";
+            return RedirectToAction("Profile");
+        }
+    }
+}

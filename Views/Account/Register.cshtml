@@ -1,0 +1,117 @@
+@model RegisterViewModel
+@{
+    ViewData["Title"] = "Đăng ký";
+}
+
+<div class="row justify-content-center my-5">
+    <div class="col-md-8 col-lg-6">
+        <div class="card glass-card shadow-lg border-0" style="border-radius: var(--radius-lg);">
+            <div class="card-body p-4">
+                <div class="text-center mb-4">
+                    <div class="brand-icon mx-auto mb-3" style="width: 48px; height: 48px; background: linear-gradient(135deg, var(--accent), var(--primary)); border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 1.5rem; color: #fff; box-shadow: 0 4px 15px rgba(6,182,212,0.2);">
+                        <i class="fas fa-user-plus"></i>
+                    </div>
+                    <h3 class="fw-800 text-dark mb-1">Đăng Ký Tài Khoản</h3>
+                    <p class="text-muted text-sm">Điền đầy đủ thông tin để trở thành bệnh nhân</p>
+                </div>
+                
+                <form asp-action="Register" method="post">
+                    @if (!ViewData.ModelState.IsValid)
+                    {
+                        <div asp-validation-summary="All" class="alert alert-danger mb-3 py-2 text-sm"></div>
+                    }
+                    
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label asp-for="Username" class="form-label">Tên đăng nhập *</label>
+                            <div class="input-group">
+                                <span class="input-group-text bg-light border-end-0 text-muted" style="border-radius: 10px 0 0 10px;"><i class="fas fa-user"></i></span>
+                                <input asp-for="Username" class="form-control border-start-0" required placeholder="Nhập tên đăng nhập" style="border-radius: 0 10px 10px 0;" />
+                            </div>
+                            <span asp-validation-for="Username" class="text-danger text-sm"></span>
+                        </div>
+                        
+                        <div class="col-md-6 mb-3">
+                            <label asp-for="FullName" class="form-label">Họ và tên *</label>
+                            <div class="input-group">
+                                <span class="input-group-text bg-light border-end-0 text-muted" style="border-radius: 10px 0 0 10px;"><i class="fas fa-id-card"></i></span>
+                                <input asp-for="FullName" class="form-control border-start-0" required placeholder="Nhập họ và tên" style="border-radius: 0 10px 10px 0;" />
+                            </div>
+                            <span asp-validation-for="FullName" class="text-danger text-sm"></span>
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label asp-for="Password" class="form-label">Mật khẩu *</label>
+                            <div class="input-group">
+                                <span class="input-group-text bg-light border-end-0 text-muted" style="border-radius: 10px 0 0 10px;"><i class="fas fa-lock"></i></span>
+                                <input asp-for="Password" class="form-control border-start-0" type="password" required placeholder="Tối thiểu 6 ký tự" style="border-radius: 0 10px 10px 0;" />
+                            </div>
+                            <span asp-validation-for="Password" class="text-danger text-sm"></span>
+                        </div>
+                        
+                        <div class="col-md-6 mb-3">
+                            <label asp-for="ConfirmPassword" class="form-label">Xác nhận mật khẩu *</label>
+                            <div class="input-group">
+                                <span class="input-group-text bg-light border-end-0 text-muted" style="border-radius: 10px 0 0 10px;"><i class="fas fa-check-double"></i></span>
+                                <input asp-for="ConfirmPassword" class="form-control border-start-0" type="password" required placeholder="Xác nhận mật khẩu" style="border-radius: 0 10px 10px 0;" />
+                            </div>
+                            <span asp-validation-for="ConfirmPassword" class="text-danger text-sm"></span>
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label asp-for="DateOfBirth" class="form-label">Ngày sinh *</label>
+                            <input asp-for="DateOfBirth" class="form-control" type="date" required />
+                            <span asp-validation-for="DateOfBirth" class="text-danger text-sm"></span>
+                        </div>
+                        
+                        <div class="col-md-6 mb-3">
+                            <label asp-for="Gender" class="form-label">Giới tính *</label>
+                            <select asp-for="Gender" class="form-select" required>
+                                <option value="">-- Chọn giới tính --</option>
+                                <option value="Nam">Nam</option>
+                                <option value="Nữ">Nữ</option>
+                            </select>
+                            <span asp-validation-for="Gender" class="text-danger text-sm"></span>
+                        </div>
+                    </div>
+                    
+                    <div class="row mb-4">
+                        <div class="col-md-6 mb-3 mb-md-0">
+                            <label asp-for="PhoneNumber" class="form-label">Số điện thoại *</label>
+                            <div class="input-group">
+                                <span class="input-group-text bg-light border-end-0 text-muted" style="border-radius: 10px 0 0 10px;"><i class="fas fa-phone"></i></span>
+                                <input asp-for="PhoneNumber" class="form-control border-start-0" required placeholder="0XXXXXXXXX" style="border-radius: 0 10px 10px 0;" />
+                            </div>
+                            <span asp-validation-for="PhoneNumber" class="text-danger text-sm"></span>
+                        </div>
+                        
+                        <div class="col-md-6">
+                            <label asp-for="Email" class="form-label">Email *</label>
+                            <div class="input-group">
+                                <span class="input-group-text bg-light border-end-0 text-muted" style="border-radius: 10px 0 0 10px;"><i class="fas fa-envelope"></i></span>
+                                <input asp-for="Email" class="form-control border-start-0" type="email" required placeholder="example@email.com" style="border-radius: 0 10px 10px 0;" />
+                            </div>
+                            <span asp-validation-for="Email" class="text-danger text-sm"></span>
+                        </div>
+                    </div>
+                    
+                    <div class="d-grid mb-3">
+                        <button type="submit" class="btn btn-primary btn-lg w-100"><i class="fas fa-user-plus me-1"></i>Đăng ký tài khoản</button>
+                    </div>
+                </form>
+                
+                <div class="text-center">
+                    <p class="text-sm text-muted mb-0">Đã có tài khoản? <a asp-action="Login" class="text-primary fw-600 text-decoration-none">Đăng nhập ngay</a></p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}

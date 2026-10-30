@@ -1,0 +1,82 @@
+@model IEnumerable<ClinicManagement.Models.Appointment>
+@{ViewData["Title"] = "Lịch hẹn của tôi";}
+<div class="page-header">
+    <h2><i class="fas fa-calendar-check me-2 text-primary"></i>Lịch hẹn của tôi</h2>
+    <a asp-action="Doctors" class="btn btn-primary btn-sm"><i class="fas fa-plus me-1"></i>Đặt lịch mới</a>
+</div>
+@if (!Model.Any())
+{<div class="text-center py-5 text-muted glass-card rounded" style="border-radius: var(--radius)"><i class="fas fa-calendar-times fa-3x mb-3 d-block opacity-25"></i><p>Bạn chưa có lịch hẹn nào</p><a asp-action="Doctors" class="btn btn-primary">Đặt lịch khám ngay</a></div>}
+else
+{
+    var upcoming = Model.Where(a => a.Status == "Đã đặt").ToList();
+    var past = Model.Where(a => a.Status != "Đã đặt").ToList();
+
+    @if (upcoming.Any())
+    {
+        <h6 class="fw-700 mb-3 text-primary"><i class="fas fa-clock me-1"></i>Sắp tới (@upcoming.Count)</h6>
+        @foreach (var a in upcoming)
+        {
+            int days = (a.AppointmentDate - DateTime.Today).Days;
+            <div class="card glass-card mb-3 border-0 shadow-sm">
+                <div class="card-body">
+                    <div class="row align-items-center">
+                        <div class="col-auto">
+                            @if (!string.IsNullOrEmpty(a.Doctor.PhotoUrl))
+                            {<img src="@a.Doctor.PhotoUrl" style="width:56px;height:56px;border-radius:50%;object-fit:cover;border:2px solid #e2e8f0" />}
+                            else
+                            {<div style="width:56px;height:56px;border-radius:50%;background:linear-gradient(135deg,var(--primary-light),var(--primary-light-hover));display:flex;align-items:center;justify-content:center;font-size:1.3rem;color:var(--primary)"><i class="fas fa-user-md"></i></div>}
+                        </div>
+                        <div class="col">
+                            <div class="fw-700">@a.Doctor.Degree. @a.Doctor.User.FullName</div>
+                            <div class="text-muted text-sm">@a.Doctor.Specialty.SpecialtyName</div>
+                            <div class="text-sm mt-1">
+                                <i class="fas fa-calendar me-1 text-primary"></i>@a.AppointmentDate.ToString("dd/MM/yyyy") · @a.AppointmentTime
+                                <span class="ms-2"><i class="fas fa-notes-medical me-1 text-warning"></i>@a.Reason</span>
+                            </div>
+                        </div>
+                        <div class="col-auto text-end">
+                            @if (days==0){<span class="badge bg-danger mb-2 d-block">Hôm nay!</span>}
+                            else if(days==1){<span class="badge bg-warning text-dark mb-2 d-block">Ngày mai</span>}
+                            else{<span class="badge bg-light border text-muted mb-2 d-block">Còn @days ngày</span>}
+                            @if (days >= 1)
+                            {
+                                <form asp-action="CancelAppointment" asp-route-id="@a.AppointmentId" method="post"
+                                      onsubmit="return confirm('Hủy lịch hẹn với @a.Doctor.User.FullName?')">
+                                    @Html.AntiForgeryToken()
+                                    <button type="submit" class="btn btn-outline-danger btn-sm"><i class="fas fa-times me-1"></i>Hủy</button>
+                                </form>
+                            }
+                        </div>
+                    </div>
+                </div>
+            </div>
+        }
+    }
+
+    @if (past.Any())
+    {
+        <h6 class="fw-700 mb-3 mt-4 text-muted"><i class="fas fa-history me-1"></i>Lịch sử (@past.Count)</h6>
+        @foreach (var a in past)
+        {
+            <div class="card glass-card mb-2 border-0 shadow-sm opacity-75">
+                <div class="card-body py-2">
+                    <div class="d-flex align-items-center gap-3">
+                        <div style="min-width:55px;text-align:center"><div class="fw-700 text-muted">@a.AppointmentDate.ToString("dd/MM")</div><div class="text-sm text-muted">@a.AppointmentDate.Year</div></div>
+                        <div class="flex-grow-1">
+                            <span class="fw-600">@a.Doctor.Degree. @a.Doctor.User.FullName</span>
+                            <span class="text-muted ms-2 text-sm">@a.Doctor.Specialty.SpecialtyName · @a.AppointmentTime</span>
+                        </div>
+                        <div>
+                            @if(a.Status=="Đã khám")
+                            {
+                                <span class="badge bg-success me-2">Đã khám</span>
+                                <a asp-action="MedicalHistory" class="btn btn-outline-primary btn-sm"><i class="fas fa-file-medical me-1"></i>Xem kết quả</a>
+                            }
+                            else{<span class="badge bg-danger">Đã hủy</span>}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        }
+    }
+}

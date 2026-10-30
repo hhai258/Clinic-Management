@@ -1,0 +1,237 @@
+@{
+    ViewData["Title"] = "Trang chủ";
+    var specialtyColors = new[] { "background:rgba(37,99,235,0.08);color:#2563eb", "background:rgba(16,185,129,0.08);color:#10b981", "background:rgba(245,158,11,0.08);color:#d97706", "background:rgba(139,92,246,0.08);color:#7c3aed", "background:rgba(239,68,68,0.08);color:#ef4444", "background:rgba(6,182,212,0.08);color:#0891b2" };
+    var specialtyIcons = new[] { "fa-heartbeat", "fa-baby", "fa-allergies", "fa-heart", "fa-ear-listen", "fa-eye", "fa-bone", "fa-brain" };
+}<!-- HERO -->
+<div class="hero-section">
+    <div class="container position-relative">
+        <div class="row align-items-center g-5">
+            <div class="col-lg-7">
+                <div class="badge mb-3 py-2 px-3 border border-opacity-10" style="background:rgba(255,255,255,0.08);color:#fff;font-size:.85rem;border-radius:999px">
+                    <i class="fas fa-star me-1 text-warning"></i>Hệ thống phòng khám hiện đại #1
+                </div>
+                <h1 class="display-4 fw-800 text-white mb-3">Chăm sóc sức khỏe <br><span class="text-neon-cyan">toàn diện & chuyên sâu</span></h1>
+                <p class="lead text-white-50 mb-4 fs-5">Đội ngũ bác sĩ đầu ngành, trang thiết bị tiên tiến nhất. Đặt lịch khám trực tuyến nhanh chóng, an toàn và bảo mật tuyệt đối 24/7.</p>
+
+                <div class="d-flex gap-3 mt-4 flex-wrap">
+                    @if (!User.Identity!.IsAuthenticated)
+                    {
+                        <a asp-controller="Account" asp-action="Register" class="btn btn-lg btn-light fw-700 px-4 py-3" style="border-radius:12px; box-shadow: 0 10px 25px rgba(255,255,255,0.1);">
+                            <i class="fas fa-calendar-plus me-2 text-primary"></i>Đặt lịch ngay
+                        </a>
+                        <a asp-controller="Account" asp-action="Login" class="btn btn-lg btn-outline-light fw-700 px-4 py-3" style="border-radius:12px; background:rgba(255,255,255,0.05);">
+                            Đăng nhập
+                        </a>
+                    }
+                    else if (User.IsInRole("Patient"))
+                    {
+                        <a asp-controller="Patient" asp-action="Doctors" class="btn btn-lg btn-light fw-700 px-4 py-3" style="border-radius:12px;">
+                            <i class="fas fa-calendar-plus me-2 text-primary"></i>Đặt lịch khám ngay
+                        </a>
+                    }
+                    else if (User.IsInRole("Doctor"))
+                    {
+                        <a asp-controller="Doctor" asp-action="Index" class="btn btn-lg btn-light fw-700 px-4 py-3" style="border-radius:12px;">
+                            <i class="fas fa-stethoscope me-2 text-primary"></i>Xem lịch khám hôm nay
+                        </a>
+                    }
+                    else if (User.IsInRole("Admin"))
+                    {
+                        <a asp-controller="Admin" asp-action="Dashboard" class="btn btn-lg btn-light fw-700 px-4 py-3" style="border-radius:12px;">
+                            <i class="fas fa-tachometer-alt me-2 text-primary"></i>Vào trang quản trị
+                        </a>
+                    }
+                </div>
+
+                <div class="hero-stats mt-5">
+                    <div class="hero-stat">
+                        <div class="num">@ViewBag.TotalDoctors+</div>
+                        <div class="lbl text-muted">Bác sĩ chuyên khoa</div>
+                    </div>
+                    <div class="hero-divider"></div>
+                    <div class="hero-stat">
+                        <div class="num">@ViewBag.TotalPatients+</div>
+                        <div class="lbl text-muted">Bệnh nhân tin tưởng</div>
+                    </div>
+                    <div class="hero-divider"></div>
+                    <div class="hero-stat">
+                        <div class="num">@ViewBag.TotalAppointments+</div>
+                        <div class="lbl text-muted">Lịch hẹn thành công</div>
+                    </div>
+                    <div class="hero-divider"></div>
+                    <div class="hero-stat">
+                        <div class="num">@ViewBag.TotalSpecialties+</div>
+                        <div class="lbl text-muted">Chuyên khoa</div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-lg-5 d-none d-lg-block text-center position-relative">
+                <div class="hero-illustration-container mx-auto" style="width: 320px; height: 320px; background: radial-gradient(circle, rgba(6,182,212,0.15) 0%, transparent 70%); border-radius: 50%; display: flex; align-items: center; justify-content: center;">
+                    <div style="font-size:12rem; animation: floatIcon 6s ease-in-out infinite;">🏥</div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+@@keyframes floatIcon {
+    0% { transform: translateY(0px) rotate(0deg); }
+    50% { transform: translateY(-15px) rotate(2deg); }
+    100% { transform: translateY(0px) rotate(0deg); }
+}
+</style>
+
+<!-- CHUYÊN KHOA -->
+<div class="mb-5 py-4">
+    <div class="text-center mb-5">
+        <h2 class="fw-800 text-dark mb-2"><i class="fas fa-stethoscope text-primary me-2"></i>Chuyên Khoa Của Chúng Tôi</h2>
+        <p class="text-muted fs-6" style="max-width: 600px; margin: 0 auto;">Đội ngũ bác sĩ chuyên môn cao, nhiều năm kinh nghiệm cùng hệ thống máy móc chuẩn đoán hiện đại bậc nhất.</p>
+    </div>
+    <div class="row g-4 justify-content-center">
+        @{int si = 0;}
+        @foreach (var spec in (ViewBag.Specialties as IEnumerable<ClinicManagement.Models.Specialty> ?? new List<ClinicManagement.Models.Specialty>()))
+        {
+            var color = specialtyColors[si % specialtyColors.Length];
+            var icon = specialtyIcons[si % specialtyIcons.Length];
+            si++;
+            <div class="col-6 col-md-4 col-lg-3">
+                <a asp-controller="Home" asp-action="SpecialtyDetail" asp-route-id="@spec.SpecialtyId" style="text-decoration:none;color:inherit">
+                    <div class="specialty-card glass-card h-100 p-4 border border-opacity-50">
+                        <div class="specialty-icon mb-3" style="width: 58px; height: 58px; border-radius: 14px; display: flex; align-items: center; justify-content: center; font-size: 1.6rem; @color">
+                            <i class="fas @icon"></i>
+                        </div>
+                        <h5 class="fw-700 text-dark mb-2" style="font-size:1.05rem">@spec.SpecialtyName</h5>
+                        <p class="text-muted text-sm mb-0">@(spec.Doctors?.Count ?? 0) bác sĩ chuyên khoa</p>
+                    </div>
+                </a>
+            </div>
+        }
+    </div>
+</div>
+
+<!-- QUY TRÌNH ĐẶT LỊCH -->
+<div class="card mb-5 border-0 shadow-sm overflow-hidden" style="border-radius: var(--radius-lg); background: linear-gradient(135deg, hsl(222,47%,94%) 0%, hsl(222,47%,98%) 100%);">
+    <div class="card-body p-5">
+        <div class="text-center mb-5">
+            <h2 class="fw-800 text-dark mb-2"><i class="fas fa-tasks text-primary me-2"></i>Quy Trình Đặt Lịch Khám</h2>
+            <p class="text-muted fs-6" style="max-width: 500px; margin:0 auto">Nhận lịch khám nhanh chóng chỉ trong 4 bước đơn giản</p>
+        </div>
+        <div class="row g-4 position-relative">
+            <div class="col-6 col-md-3 process-step">
+                <div class="step-num mb-3">1</div>
+                <h6 class="fw-700 text-dark mb-2">Chọn chuyên khoa</h6>
+                <p class="text-muted text-sm mb-0">Lựa chọn chuyên khoa phù hợp với triệu chứng của bạn</p>
+            </div>
+            <div class="col-6 col-md-3 process-step">
+                <div class="step-num mb-3">2</div>
+                <h6 class="fw-700 text-dark mb-2">Chọn bác sĩ</h6>
+                <p class="text-muted text-sm mb-0">Xem thông tin và lựa chọn bác sĩ theo nhu cầu</p>
+            </div>
+            <div class="col-6 col-md-3 process-step">
+                <div class="step-num mb-3">3</div>
+                <h6 class="fw-700 text-dark mb-2">Chọn ngày & giờ</h6>
+                <p class="text-muted text-sm mb-0">Chủ động lựa chọn khung giờ rảnh phù hợp</p>
+            </div>
+            <div class="col-6 col-md-3 process-step">
+                <div class="step-num mb-3">4</div>
+                <h6 class="fw-700 text-dark mb-2">Xác nhận lịch</h6>
+                <p class="text-muted text-sm mb-0">Đến đúng hẹn và nhận sự chăm sóc chu đáo nhất</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- BÁC SĨ NỔI BẬT -->
+@if ((ViewBag.FeaturedDoctors as IEnumerable<ClinicManagement.Models.Doctor>)?.Any() == true)
+{
+    <div class="mb-5 py-4">
+        <div class="text-center mb-5">
+            <h2 class="fw-800 text-dark mb-2"><i class="fas fa-user-md text-primary me-2"></i>Đội Ngũ Bác Sĩ Tiêu Biểu</h2>
+            <p class="text-muted fs-6" style="max-width:500px; margin: 0 auto">Những bác sĩ xuất sắc, tận tâm và được nhiều bệnh nhân tin cậy nhất.</p>
+        </div>
+        <div class="row g-4">
+            @foreach (var doc in (ViewBag.FeaturedDoctors as IEnumerable<ClinicManagement.Models.Doctor>)!)
+            {
+                <div class="col-sm-6 col-lg-4">
+                    <div class="doctor-card h-100 d-flex flex-column border-0 shadow-sm overflow-hidden">
+                        <div class="position-relative overflow-hidden" style="height: 230px;">
+                            @if (!string.IsNullOrEmpty(doc.PhotoUrl))
+                            {
+                                <img src="@doc.PhotoUrl" class="doctor-photo w-100 h-100" alt="@doc.User.FullName" style="object-position: center 10%; transition: transform 0.5s ease;" />
+                            }
+                            else
+                            {
+                                <div class="doctor-photo-placeholder w-100 h-100"><i class="fas fa-user-md"></i></div>
+                            }
+                            <div class="position-absolute top-3 end-3" style="top: 15px; right: 15px;">
+                                <span class="badge bg-white text-primary border shadow-sm px-3 py-2 fw-700" style="border-radius:30px;">@doc.Degree</span>
+                            </div>
+                        </div>
+                        <div class="card-body p-4 d-flex flex-column flex-grow-1">
+                            <h5 class="fw-800 text-dark mb-1">@doc.Degree. @doc.User.FullName</h5>
+                            <p class="text-primary fw-600 text-sm mb-3">Chuyên khoa: @doc.Specialty.SpecialtyName</p>
+                            
+                            <div class="d-flex gap-4 text-sm text-muted mb-4 mt-auto">
+                                <span><i class="fas fa-briefcase text-primary me-2"></i><strong>@doc.Experience</strong> năm KN</span>
+                                <span><i class="fas fa-money-bill-wave text-success me-2"></i><strong>@doc.ExaminationFee.ToString("N0")₫</strong></span>
+                            </div>
+                            
+                            @if (User.IsInRole("Patient"))
+                            {
+                                <a asp-controller="Patient" asp-action="BookAppointment" asp-route-doctorId="@doc.DoctorId" class="btn btn-primary w-100 py-2">
+                                    <i class="fas fa-calendar-plus me-1"></i>Đặt lịch khám
+                                </a>
+                            }
+                            else if (!User.Identity!.IsAuthenticated)
+                            {
+                                <a asp-controller="Account" asp-action="Register" class="btn btn-outline-primary w-100 py-2">
+                                    <i class="fas fa-user-plus me-1"></i>Đăng ký đặt lịch
+                                </a>
+                            }
+                            else
+                            {
+                                <a asp-controller="Home" asp-action="SpecialtyDetail" asp-route-id="@doc.SpecialtyId" class="btn btn-outline-secondary w-100 py-2">
+                                    <i class="fas fa-info-circle me-1"></i>Chi tiết chuyên khoa
+                                </a>
+                            }
+                        </div>
+                    </div>
+                </div>
+            }
+        </div>
+        
+        @if (!User.IsInRole("Patient") && !User.Identity!.IsAuthenticated)
+        {
+            <div class="text-center mt-5">
+                <a asp-controller="Account" asp-action="Register" class="btn btn-primary btn-lg px-5 py-3 shadow" style="border-radius:14px;">
+                    <i class="fas fa-user-plus me-2"></i>Đăng ký tài khoản ngay
+                </a>
+            </div>
+        }
+    </div>
+}
+
+<!-- VÌ SAO CHỌN CHÚNG TÔI -->
+<div class="row g-4 mb-5">
+    @{
+        var features = new[] {
+            new { Icon="fa-user-md", Color="background:rgba(37,99,235,0.08);color:#2563eb", Title="Bác sĩ giỏi chuyên môn", Desc="Đội ngũ thạc sĩ, bác sĩ giỏi chuyên môn, tận tụy chăm sóc bệnh nhân." },
+            new { Icon="fa-clock", Color="background:rgba(16,185,129,0.08);color:#10b981", Title="Đăng ký lịch hẹn 24/7", Desc="Đặt hẹn khám bất cứ lúc nào, chủ động hoàn toàn thời gian cá nhân." },
+            new { Icon="fa-file-medical", Color="background:rgba(245,158,11,0.08);color:#d97706", Title="Hồ sơ bệnh án điện tử", Desc="Lịch sử khám, kết quả được lưu trữ điện tử an toàn, truy xuất nhanh." },
+            new { Icon="fa-shield-alt", Color="background:rgba(139,92,246,0.08);color:#7c3aed", Title="Bảo mật tuyệt đối", Desc="Thông tin y tế, dữ liệu cá nhân của người bệnh được bảo vệ an toàn tối đa." },
+        };
+    }
+    @foreach (var f in features)
+    {
+        <div class="col-sm-6 col-lg-3">
+            <div class="card p-4 h-100 text-center border-0 shadow-sm">
+                <div class="specialty-icon mb-3 mx-auto" style="width: 58px; height: 58px; border-radius: 14px; display: flex; align-items: center; justify-content: center; font-size: 1.6rem; @f.Color">
+                    <i class="fas @f.Icon"></i>
+                </div>
+                <h6 class="fw-700 text-dark mb-2">@f.Title</h6>
+                <p class="text-muted text-sm mb-0" style="line-height:1.6">@f.Desc</p>
+            </div>
+        </div>
+    }
+</div>

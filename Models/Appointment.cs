@@ -1,0 +1,57 @@
+// Tệp: Models/Appointment.cs
+// Mô tả: Mô hình dữ liệu lịch hẹn khám bệnh. Liên kết bệnh nhân, bác sĩ, ngày giờ và trạng thái.
+
+using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations.Schema;
+
+namespace ClinicManagement.Models
+{
+    /// <summary>
+    /// Đại diện cho một lịch hẹn khám bệnh. Liên kết bệnh nhân với bác sĩ
+    /// trong một khung giờ cụ thể, có trạng thái và có thể kèm hồ sơ khám.
+    /// </summary>
+    public class Appointment
+    {
+        /// <summary>Định danh duy nhất của lịch hẹn (khóa chính)</summary>
+        [Key]
+        public int AppointmentId { get; set; }
+
+        /// <summary>Khóa ngoại liên kết đến bệnh nhân (User với Role = Patient)</summary>
+        [Required]
+        [ForeignKey("Patient")]
+        public int PatientId { get; set; }
+
+        /// <summary>Khóa ngoại liên kết đến bác sĩ</summary>
+        [Required]
+        [ForeignKey("Doctor")]
+        public int DoctorId { get; set; }
+
+        /// <summary>Ngày hẹn khám</summary>
+        [Required(ErrorMessage = "Ngày hẹn là bắt buộc")]
+        [DataType(DataType.Date)]
+        public DateTime AppointmentDate { get; set; }
+
+        /// <summary>Giờ hẹn (ví dụ: "08:00", "09:00", "10:00", "11:00", "13:00", "14:00", "15:00", "16:00", "17:00")</summary>
+        [Required(ErrorMessage = "Giờ hẹn là bắt buộc")]
+        public string AppointmentTime { get; set; }
+
+        /// <summary>Lý do khám bệnh</summary>
+        [Required(ErrorMessage = "Lý do khám là bắt buộc")]
+        [StringLength(500)]
+        public string Reason { get; set; }
+
+        /// <summary>Trạng thái lịch hẹn: "Đã đặt", "Đã khám", hoặc "Đã hủy"</summary>
+        [Required]
+        [StringLength(20)]
+        public string Status { get; set; }
+
+        /// <summary>Thuộc tính điều hướng: bệnh nhân của lịch hẹn này</summary>
+        public User Patient { get; set; }
+
+        /// <summary>Thuộc tính điều hướng: bác sĩ khám của lịch hẹn này</summary>
+        public Doctor Doctor { get; set; }
+
+        /// <summary>Thuộc tính điều hướng: hồ sơ khám (nếu lịch hẹn đã được khám)</summary>
+        public MedicalRecord? MedicalRecord { get; set; }
+    }
+}

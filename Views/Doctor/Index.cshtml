@@ -1,0 +1,95 @@
+@model IEnumerable<ClinicManagement.Models.Appointment>
+@{
+    ViewData["Title"] = "Lịch khám hôm nay";
+    var doctor = ViewBag.Doctor as ClinicManagement.Models.Doctor;
+    var done = Model.Count(a => a.Status == "Đã khám");
+    var waiting = Model.Count(a => a.Status == "Đã đặt");
+    int pct = Model.Any() ? (int)(done * 100.0 / Model.Count()) : 0;
+}
+
+<div class="profile-header mb-4">
+    <div class="d-flex align-items-center gap-3">
+        @if (!string.IsNullOrEmpty(doctor?.PhotoUrl))
+        {<img src="@doctor.PhotoUrl" class="profile-avatar" alt="" />}
+        else
+        {<div class="profile-avatar-placeholder"><i class="fas fa-user-md"></i></div>}
+        <div>
+            <div class="fw-700 fs-5">@doctor?.Degree. @doctor?.User.FullName</div>
+            <div class="opacity-75">@doctor?.Specialty.SpecialtyName</div>
+            <div class="opacity-60 text-sm"><i class="fas fa-calendar me-1"></i>@DateTime.Today.ToString("dddd, dd/MM/yyyy")</div>
+        </div>
+    </div>
+</div>
+
+<div class="row g-3 mb-4">
+    <div class="col-sm-3"><div class="stat-card blue"><div class="stat-icon"><i class="fas fa-list"></i></div><div class="stat-number">@Model.Count()</div><div class="stat-label">Lịch hẹn hôm nay</div><div class="stat-bg"><i class="fas fa-list"></i></div></div></div>
+    <div class="col-sm-3"><div class="stat-card amber"><div class="stat-icon"><i class="fas fa-hourglass-half"></i></div><div class="stat-number">@ViewBag.WaitingCount</div><div class="stat-label">Chờ khám</div><div class="stat-bg"><i class="fas fa-hourglass-half"></i></div></div></div>
+    <div class="col-sm-3"><div class="stat-card green"><div class="stat-icon"><i class="fas fa-check-circle"></i></div><div class="stat-number">@ViewBag.DoneCount</div><div class="stat-label">Đã khám xong</div><div class="stat-bg"><i class="fas fa-check-circle"></i></div></div></div>
+    <div class="col-sm-3"><div class="stat-card cyan"><div class="stat-icon"><i class="fas fa-calendar-alt"></i></div><div class="stat-number">@ViewBag.TotalThisMonth</div><div class="stat-label">Tháng này</div><div class="stat-bg"><i class="fas fa-calendar-alt"></i></div></div></div>
+</div>
+
+@if (Model.Any())
+{
+    <div class="card glass-card mb-3 border-0 shadow-sm">
+        <div class="card-body py-2">
+            <div class="d-flex justify-content-between align-items-center mb-1">
+                <span class="text-sm fw-600">Tiến độ khám hôm nay</span>
+                <span class="text-sm text-muted">@done / @Model.Count() ca (@pct%)</span>
+            </div>
+            <div class="progress" style="height:10px;border-radius:999px">
+                <div class="progress-bar bg-success" style="width:@pct%;border-radius:999px;transition:width .5s"></div>
+            </div>
+        </div>
+    </div>
+}
+
+<div class="card glass-card border-0 shadow-sm">
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <span><i class="fas fa-calendar-day me-2 text-primary"></i>Danh sách bệnh nhân hôm nay</span>
+        <div class="d-flex gap-1">
+            <a asp-action="MyAppointments" class="btn btn-outline-secondary btn-sm">Xem tất cả</a>
+            <a asp-action="BookAppointment" class="btn btn-primary btn-sm"><i class="fas fa-calendar-plus me-1"></i>Đặt lịch</a>
+            <a asp-action="CreatePatient" class="btn btn-success btn-sm"><i class="fas fa-user-plus me-1"></i>Thêm</a>
+        </div>
+    </div>
+    <div class="card-body p-0">
+        @if (!Model.Any())
+        {
+            <div class="text-center py-5 text-muted"><i class="fas fa-calendar-check fa-3x mb-3 d-block opacity-25"></i>Không có lịch hẹn nào hôm nay</div>
+        }
+        else
+        {
+            <div class="table-responsive">
+            <table class="table table-hover mb-0">
+                <thead><tr><th>Giờ</th><th>Bệnh nhân</th><th>Tuổi</th><th>Lý do khám</th><th>Trạng thái</th><th class="text-center">Thao tác</th></tr></thead>
+                <tbody>
+                    @foreach (var a in Model)
+                    {
+                        int age = DateTime.Today.Year - a.Patient.DateOfBirth.Year;
+                        <tr class="@(a.Status == "Đã đặt" ? "" : "opacity-75")">
+                            <td><span class="badge bg-light text-dark border fw-700">@a.AppointmentTime</span></td>
+                            <td>
+                                <div class="fw-600">@a.Patient.FullName</div>
+                                <div class="text-sm text-muted">@a.Patient.PhoneNumber</div>
+                            </td>
+                            <td>@age tuổi</td>
+                            <td><small class="text-muted">@(a.Reason.Length > 50 ? a.Reason.Substring(0,50)+"..." : a.Reason)</small></td>
+                            <td>
+                                @if (a.Status == "Đã đặt") {<span class="badge bg-warning text-dark">Chờ khám</span>}
+                                else {<span class="badge bg-success">Đã khám</span>}
+                            </td>
+                            <td class="text-center">
+                                <div class="d-flex gap-1 justify-content-center">
+                                    @if (a.Status == "Đã đặt")
+                                    {<a asp-action="Examine" asp-route-id="@a.AppointmentId" class="btn btn-primary btn-sm"><i class="fas fa-stethoscope me-1"></i>Khám</a>}
+                                    <a asp-action="PatientHistory" asp-route-patientId="@a.PatientId" class="btn btn-outline-info btn-sm" title="Tiền sử bệnh"><i class="fas fa-history"></i></a>
+                                </div>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+            </div>
+        }
+    </div>
+</div>

@@ -1,0 +1,74 @@
+// Tệp: Program.cs
+// Mô tả: Cấu hình khởi động ứng dụng ASP.NET Core: services, authentication, database migration và seed dữ liệu.
+
+using Microsoft.EntityFrameworkCore;
+using Microsoft.AspNetCore.Authentication.Cookies;
+using ClinicManagement.Data;
+
+var builder = WebApplication.CreateBuilder(args);
+
+// Đăng ký dịch vụ Controllers, Views và hỗ trợ Razor Pages
+builder.Services.AddControllersWithViews();
+
+builder.Services.AddDbContext<ApplicationDbContext>(options =>
+    options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
+
+// Cấu hình xác thực dựa trên Cookie
+builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
+    .AddCookie(options =>
+    {
+        options.LoginPath = "/Account/Login";
+        options.AccessDeniedPath = "/Account/AccessDenied";
+        options.ExpireTimeSpan = TimeSpan.FromHours(24);
+        options.SlidingExpiration = true;
+    });
+
+// Cấu hình phân quyền (Authorization)
+builder.Services.AddAuthorization();
+
+var app = builder.Build();
+
+// Tự động thực hiện migration và seed dữ liệu khi khởi động
+using (var scope = app.Services.CreateScope())
+{
+    var services = scope.ServiceProvider;
+    try
+    {
+        var context = services.GetRequiredService<ApplicationDbContext>();
+        // Thực hiện tất cả các migration chưa thực hiện (tạo DB nếu không tồn tại)
+        context.Database.Migrate();
+        // Sau đó seed dữ liệu mẫu
+        DbInitializer.Initialize(context);
+    }
+    catch (Exception ex)
+    {
+        var logger = services.GetRequiredService<ILogger<Program>>();
+        logger.LogError(ex, "Lỗi khởi tạo database.");
+    }
+}
+
+if (!app.Environment.IsDevelopment())
+{
+    // Xử lý lỗi ngoại lệ trong môi trường production
+    app.UseExceptionHandler("/Home/Error");
+    // Bật HSTS (HTTP Strict-Transport-Security)
+    app.UseHsts();
+}
+
+// Buộc sử dụng HTTPS
+app.UseHttpsRedirection();
+// Phục vụ các tệp tĩnh (CSS, JS, hình ảnh, v.v.)
+app.UseStaticFiles();
+// Cấu hình routing
+app.UseRouting();
+// Sử dụng xác thực
+app.UseAuthentication();
+// Sử dụng phân quyền
+app.UseAuthorization();
+
+// Định tuyến mặc định: {controller=Home}/{action=Index}/{id?}
+app.MapControllerRoute(
+    name: "default",
+    pattern: "{controller=Home}/{action=Index}/{id?}");
+
+app.Run();

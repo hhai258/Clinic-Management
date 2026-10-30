@@ -1,0 +1,43 @@
+﻿using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations.Schema;
+
+namespace ClinicManagement.Models
+{
+    public class Doctor
+    {
+        [Key]
+        public int DoctorId { get; set; }
+
+        [Required]
+        [ForeignKey("User")]
+        public int UserId { get; set; }
+
+        [Required]
+        [ForeignKey("Specialty")]
+        public int SpecialtyId { get; set; }
+
+        [Required(ErrorMessage = "Học vị là bắt buộc")]
+        [StringLength(10)]
+        public string Degree { get; set; }
+
+        [Required(ErrorMessage = "Kinh nghiệm là bắt buộc")]
+        [Range(0, 50, ErrorMessage = "Kinh nghiệm phải từ 0 đến 50 năm")]
+        public int Experience { get; set; }
+
+        [Required(ErrorMessage = "Giá khám là bắt buộc")]
+        [Range(1, double.MaxValue, ErrorMessage = "Giá khám phải lớn hơn 0")]
+        [Column(TypeName = "decimal(18,2)")]
+        public decimal ExaminationFee { get; set; }
+
+        [StringLength(500)]
+        public string? PhotoUrl { get; set; }
+
+        [StringLength(1000)]
+        public string? Bio { get; set; }
+
+        // Thuộc tính điều hướng (Navigation properties)
+        public User User { get; set; }
+        public Specialty Specialty { get; set; }
+        public ICollection<Appointment>? Appointments { get; set; }
+    }
+}

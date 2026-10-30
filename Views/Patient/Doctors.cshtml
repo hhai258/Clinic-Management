@@ -1,0 +1,93 @@
+@model IEnumerable<ClinicManagement.Models.Doctor>
+@{
+    ViewData["Title"] = "Chọn bác sĩ khám";
+    var specialties = ViewBag.Specialties as IEnumerable<ClinicManagement.Models.Specialty>;
+    int? selectedSp = ViewBag.SelectedSpecialty as int?;
+}
+<div class="page-header">
+    <h2><i class="fas fa-user-md me-2 text-primary"></i>Chọn bác sĩ khám</h2>
+</div>
+<div class="card glass-card mb-4 border-0">
+    <div class="card-body py-3">
+        <form method="get" class="row g-2 align-items-end">
+            <div class="col-md-4">
+                <label class="form-label mb-1 small">Chuyên khoa</label>
+                <select name="specialtyId" class="form-select form-select-sm" onchange="this.form.submit()">
+                    <option value="">-- Tất cả chuyên khoa --</option>
+                    @foreach (var s in specialties!)
+                    {
+                        if (selectedSp.HasValue && selectedSp.Value == s.SpecialtyId)
+                        {
+                            <option value="@s.SpecialtyId" selected="selected">@s.SpecialtyName</option>
+                        }
+                        else
+                        {
+                            <option value="@s.SpecialtyId">@s.SpecialtyName</option>
+                        }
+                    }
+                </select>
+            </div>
+            <div class="col-md-4">
+                <label class="form-label mb-1 small">Tìm kiếm</label>
+                <input type="text" name="search" class="form-control form-control-sm"
+                       placeholder="Tên bác sĩ..." value="@ViewBag.Search" />
+            </div>
+            <div class="col-auto">
+                <button type="submit" class="btn btn-primary btn-sm"><i class="fas fa-search me-1"></i>Tìm</button>
+                <a asp-action="Doctors" class="btn btn-outline-secondary btn-sm ms-1">Xóa lọc</a>
+            </div>
+        </form>
+    </div>
+</div>
+
+@if (!Model.Any())
+{
+    <div class="text-center py-5 text-muted glass-card rounded" style="border-radius: var(--radius)">
+        <i class="fas fa-user-md fa-3x mb-3 d-block opacity-25"></i>
+        Không có bác sĩ nào phù hợp với tiêu chí tìm kiếm
+    </div>
+}
+else
+{
+    <div class="row g-3">
+        @foreach (var d in Model)
+        {
+            <div class="col-sm-6 col-lg-4">
+                <div class="doctor-card glass-card h-100 d-flex flex-column border-0 shadow-sm overflow-hidden">
+                    <div class="position-relative overflow-hidden" style="height: 220px;">
+                        @if (!string.IsNullOrEmpty(d.PhotoUrl))
+                        {
+                            <img src="@d.PhotoUrl" class="doctor-photo w-100 h-100" alt="@d.User.FullName" style="object-fit: cover;" />
+                        }
+                        else
+                        {
+                            <div class="doctor-photo-placeholder w-100 h-100">
+                                <i class="fas fa-user-md"></i>
+                            </div>
+                        }
+                        <div class="position-absolute top-3 end-3" style="top: 15px; right: 15px;">
+                            <span class="badge bg-white text-primary border shadow-sm px-3 py-2 fw-700" style="border-radius:30px;">@d.Degree</span>
+                        </div>
+                    </div>
+                    <div class="card-body p-4 d-flex flex-column flex-grow-1">
+                        <h5 class="fw-800 text-dark mb-1">@d.Degree. @d.User.FullName</h5>
+                        <p class="text-primary fw-600 text-sm mb-3">Chuyên khoa: @d.Specialty.SpecialtyName</p>
+                        @if (!string.IsNullOrEmpty(d.Bio))
+                        {
+                            <p class="text-muted text-sm mb-3">
+                                @(d.Bio.Length > 80 ? d.Bio.Substring(0, 80) + "..." : d.Bio)
+                            </p>
+                        }
+                        <div class="d-flex gap-3 text-sm text-muted mb-4 mt-auto">
+                            <span><i class="fas fa-briefcase text-primary me-2"></i><strong>@d.Experience</strong> năm KN</span>
+                            <span><i class="fas fa-money-bill-wave text-success me-2"></i><strong>@d.ExaminationFee.ToString("N0")₫</strong></span>
+                        </div>
+                        <a asp-action="BookAppointment" asp-route-doctorId="@d.DoctorId" class="btn btn-primary w-100 py-2">
+                            <i class="fas fa-calendar-plus me-1"></i>Đặt lịch khám
+                        </a>
+                    </div>
+                </div>
+            </div>
+        }
+    </div>
+}

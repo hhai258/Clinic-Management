@@ -1,0 +1,368 @@
+﻿using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
+using ClinicManagement.Data;
+using ClinicManagement.Models;
+using ClinicManagement.Models.ViewModels;
+
+namespace ClinicManagement.Controllers
+{
+    [Authorize(Roles = "Admin")]
+    public class AdminController : Controller
+    {
+        private readonly ApplicationDbContext _context;
+        private readonly IWebHostEnvironment _env;
+
+        public AdminController(ApplicationDbContext context, IWebHostEnvironment env)
+        {
+            _context = context;
+            _env = env;
+        }
+
+        public IActionResult Dashboard()
+        {
+            ViewBag.TotalDoctors = _context.Doctors.Count();
+            ViewBag.TotalPatients = _context.Users.Count(u => u.Role == "Patient");
+            ViewBag.TotalAppointments = _context.Appointments.Count();
+            ViewBag.TodayAppointments = _context.Appointments.Count(a => a.AppointmentDate == DateTime.Today);
+            ViewBag.PendingAppointments = _context.Appointments.Count(a => a.Status == "Đã đặt");
+            ViewBag.CompletedAppointments = _context.Appointments.Count(a => a.Status == "Đã khám");
+            ViewBag.TodayWaiting = _context.Appointments.Count(a => a.AppointmentDate == DateTime.Today && a.Status == "Đã đặt");
+            ViewBag.TodayDone = _context.Appointments.Count(a => a.AppointmentDate == DateTime.Today && a.Status == "Đã khám");
+            return View();
+        }
+
+        // ==================== BÁC SĨ ====================
+        public IActionResult Doctors(string search = "")
+        {
+            var query = _context.Doctors.Include(d => d.User).Include(d => d.Specialty).AsQueryable();
+            if (!string.IsNullOrEmpty(search))
+                query = query.Where(d => d.User.FullName.Contains(search) || d.Specialty.SpecialtyName.Contains(search));
+            ViewBag.Search = search;
+            return View(query.ToList());
+        }
+
+        public IActionResult CreateDoctor()
+        {
+            ViewBag.Specialties = _context.Specialties.ToList();
+            return View();
+        }
+
+        [HttpPost][ValidateAntiForgeryToken]
+        public async Task<IActionResult> CreateDoctor(User user, int specialtyId, string degree, int experience, decimal examinationFee, string? bio, IFormFile? photo)
+        {
+            user.Role = "Doctor";
+            user.CreatedAt = DateTime.Now;
+            _context.Users.Add(user);
+            await _context.SaveChangesAsync();
+
+            var doctor = new Doctor { UserId = user.UserId, SpecialtyId = specialtyId, Degree = degree, Experience = experience, ExaminationFee = examinationFee, Bio = bio };
+
+            if (photo != null && photo.Length > 0)
+            {
+                var fileName = $"doctor_{user.UserId}_{Guid.NewGuid():N}{Path.GetExtension(photo.FileName)}";
+                var savePath = Path.Combine(_env.WebRootPath, "img", "doctors", fileName);
+                Directory.CreateDirectory(Path.GetDirectoryName(savePath)!);
+                using var stream = new FileStream(savePath, FileMode.Create);
+                await photo.CopyToAsync(stream);
+                doctor.PhotoUrl = $"/img/doctors/{fileName}";
+            }
+
+            _context.Doctors.Add(doctor);
+            await _context.SaveChangesAsync();
+            TempData["SuccessMessage"] = "Thêm bác sĩ thành công!";
+            return RedirectToAction("Doctors");
+        }
+
+        public IActionResult EditDoctor(int id)
+        {
+            var doctor = _context.Doctors.Include(d => d.User).Include(d => d.Specialty).FirstOrDefault(d => d.DoctorId == id);
+            if (doctor == null) return NotFound();
+            ViewBag.Specialties = _context.Specialties.ToList();
+            return View(doctor);
+        }
+
+        [HttpPost][ValidateAntiForgeryToken]
+        public async Task<IActionResult> EditDoctor(Doctor doctor, IFormFile? photo)
+        {
+            var existing = _context.Doctors.Include(d => d.User).FirstOrDefault(d => d.DoctorId == doctor.DoctorId);
+            if (existing == null) return NotFound();
+
+            existing.SpecialtyId = doctor.SpecialtyId;
+            existing.Degree = doctor.Degree;
+            existing.Experience = doctor.Experience;
+            existing.ExaminationFee = doctor.ExaminationFee;
+            existing.Bio = doctor.Bio;
+            existing.User.FullName = doctor.User.FullName;
+            existing.User.DateOfBirth = doctor.User.DateOfBirth;
+            existing.User.Gender = doctor.User.Gender;
+            existing.User.PhoneNumber = doctor.User.PhoneNumber;
+            existing.User.Email = doctor.User.Email;
+
+            if (photo != null && photo.Length > 0)
+            {
+                var fileName = $"doctor_{existing.UserId}_{Guid.NewGuid():N}{Path.GetExtension(photo.FileName)}";
+                var savePath = Path.Combine(_env.WebRootPath, "img", "doctors", fileName);
+                Directory.CreateDirectory(Path.GetDirectoryName(savePath)!);
+                using var stream = new FileStream(savePath, FileMode.Create);
+                await photo.CopyToAsync(stream);
+                existing.PhotoUrl = $"/img/doctors/{fileName}";
+            }
+
+            await _context.SaveChangesAsync();
+            TempData["SuccessMessage"] = "Cập nhật thông tin bác sĩ thành công!";
+            return RedirectToAction("Doctors");
+        }
+
+        [HttpPost][ValidateAntiForgeryToken]
+        public IActionResult DeleteDoctor(int id)
+        {
+            var doctor = _context.Doctors.Find(id);
+            if (doctor != null)
+            {
+                var user = _context.Users.Find(doctor.UserId);
+                _context.Doctors.Remove(doctor);
+                if (user != null) _context.Users.Remove(user);
+                _context.SaveChanges();
+                TempData["SuccessMessage"] = "Xóa bác sĩ thành công!";
+            }
+            return RedirectToAction("Doctors");
+        }
+
+        // ==================== CHUYÊN KHOA ====================
+        public IActionResult Specialties() => View(_context.Specialties.ToList());
+
+        public IActionResult CreateSpecialty() => View();
+
+        [HttpPost][ValidateAntiForgeryToken]
+        public IActionResult CreateSpecialty(Specialty specialty)
+        {
+            if (ModelState.IsValid) { _context.Specialties.Add(specialty); _context.SaveChanges(); TempData["SuccessMessage"] = "Thêm chuyên khoa thành công!"; return RedirectToAction("Specialties"); }
+            return View(specialty);
+        }
+
+        [HttpPost][ValidateAntiForgeryToken]
+        public IActionResult DeleteSpecialty(int id)
+        {
+            var s = _context.Specialties.Find(id);
+            if (s != null) { _context.Specialties.Remove(s); _context.SaveChanges(); TempData["SuccessMessage"] = "Xóa chuyên khoa thành công!"; }
+            return RedirectToAction("Specialties");
+        }
+
+        // ==================== BỆNH NHÂN ====================
+        public async Task<IActionResult> Patients(string search = "")
+        {
+            var query = _context.Users.Where(u => u.Role == "Patient");
+            if (!string.IsNullOrEmpty(search))
+                query = query.Where(p => p.FullName.Contains(search) || p.PhoneNumber.Contains(search) || p.Email.Contains(search) || p.Username.Contains(search));
+            var patients = await query.OrderByDescending(u => u.CreatedAt ?? DateTime.MinValue).ToListAsync();
+            ViewBag.Search = search;
+            ViewBag.TotalPatients = patients.Count;
+            return View(patients);
+        }
+
+        [HttpGet] public IActionResult CreatePatient() => View();
+
+        [HttpPost][ValidateAntiForgeryToken]
+        public async Task<IActionResult> CreatePatient(CreatePatientViewModel model)
+        {
+            if (ModelState.IsValid)
+            {
+                if (await _context.Users.AnyAsync(u => u.Username == model.Username)) { ModelState.AddModelError("Username", "Tên đăng nhập đã tồn tại"); return View(model); }
+                if (await _context.Users.AnyAsync(u => u.Email == model.Email)) { ModelState.AddModelError("Email", "Email đã được sử dụng"); return View(model); }
+                var user = new User { Username = model.Username, Password = model.Password, FullName = model.FullName, DateOfBirth = model.DateOfBirth, Gender = model.Gender, PhoneNumber = model.PhoneNumber, Email = model.Email, Address = model.Address, EmergencyContact = model.EmergencyContact, MedicalHistory = model.MedicalHistory, Role = "Patient", CreatedAt = DateTime.Now };
+                _context.Users.Add(user);
+                await _context.SaveChangesAsync();
+                TempData["SuccessMessage"] = $"Thêm bệnh nhân '{user.FullName}' thành công!";
+                return RedirectToAction(nameof(Patients));
+            }
+            return View(model);
+        }
+
+        [HttpGet]
+        public async Task<IActionResult> EditPatient(int id)
+        {
+            var patient = await _context.Users.FirstOrDefaultAsync(u => u.UserId == id && u.Role == "Patient");
+            if (patient == null) return NotFound();
+            var model = new CreatePatientViewModel { Username = patient.Username, Password = patient.Password, FullName = patient.FullName, DateOfBirth = patient.DateOfBirth, Gender = patient.Gender, PhoneNumber = patient.PhoneNumber, Email = patient.Email, Address = patient.Address, EmergencyContact = patient.EmergencyContact, MedicalHistory = patient.MedicalHistory };
+            ViewBag.PatientId = patient.UserId;
+            ViewBag.PatientName = patient.FullName;
+            return View(model);
+        }
+
+        [HttpPost][ValidateAntiForgeryToken]
+        public async Task<IActionResult> EditPatient(int id, CreatePatientViewModel model)
+        {
+            if (ModelState.IsValid)
+            {
+                var patient = await _context.Users.FirstOrDefaultAsync(u => u.UserId == id && u.Role == "Patient");
+                if (patient == null) return NotFound();
+                if (await _context.Users.AnyAsync(u => u.Email == model.Email && u.UserId != id)) { ModelState.AddModelError("Email", "Email đã được sử dụng bởi tài khoản khác"); ViewBag.PatientId = id; ViewBag.PatientName = patient.FullName; return View(model); }
+                patient.FullName = model.FullName; patient.DateOfBirth = model.DateOfBirth; patient.Gender = model.Gender; patient.PhoneNumber = model.PhoneNumber; patient.Email = model.Email; patient.Address = model.Address; patient.EmergencyContact = model.EmergencyContact; patient.MedicalHistory = model.MedicalHistory;
+                if (!string.IsNullOrEmpty(model.Password)) patient.Password = model.Password;
+                await _context.SaveChangesAsync();
+                TempData["SuccessMessage"] = $"Cập nhật thông tin bệnh nhân '{patient.FullName}' thành công!";
+                return RedirectToAction(nameof(Patients));
+            }
+            ViewBag.PatientId = id;
+            return View(model);
+        }
+
+        [HttpPost][ValidateAntiForgeryToken]
+        public async Task<IActionResult> DeletePatient(int id)
+        {
+            var patient = await _context.Users.Include(u => u.Appointments).FirstOrDefaultAsync(u => u.UserId == id && u.Role == "Patient");
+            if (patient == null) return NotFound();
+            if (patient.Appointments != null && patient.Appointments.Any()) { TempData["ErrorMessage"] = $"Không thể xóa bệnh nhân '{patient.FullName}' vì đã có lịch hẹn!"; return RedirectToAction(nameof(Patients)); }
+            _context.Users.Remove(patient);
+            await _context.SaveChangesAsync();
+            TempData["SuccessMessage"] = $"Xóa bệnh nhân '{patient.FullName}' thành công!";
+            return RedirectToAction(nameof(Patients));
+        }
+
+        public async Task<IActionResult> PatientDetail(int id)
+        {
+            var patient = await _context.Users.Include(u => u.Appointments).ThenInclude(a => a.Doctor).ThenInclude(d => d.User).Include(u => u.Appointments).ThenInclude(a => a.Doctor).ThenInclude(d => d.Specialty).Include(u => u.Appointments).ThenInclude(a => a.MedicalRecord).FirstOrDefaultAsync(u => u.UserId == id && u.Role == "Patient");
+            if (patient == null) return NotFound();
+            return View(patient);
+        }
+
+        // ==================== LỊCH HẸN ====================
+        public IActionResult Appointments(string status = "", string date = "", string doctorName = "")
+        {
+            var query = _context.Appointments.Include(a => a.Patient).Include(a => a.Doctor).ThenInclude(d => d.User).Include(a => a.Doctor).ThenInclude(d => d.Specialty).AsQueryable();
+            if (!string.IsNullOrEmpty(status)) query = query.Where(a => a.Status == status);
+            if (!string.IsNullOrEmpty(date) && DateTime.TryParse(date, out DateTime filterDate)) query = query.Where(a => a.AppointmentDate == filterDate.Date);
+            if (!string.IsNullOrEmpty(doctorName)) query = query.Where(a => a.Doctor.User.FullName.Contains(doctorName));
+            var appointments = query.OrderByDescending(a => a.AppointmentDate).ThenBy(a => a.AppointmentTime).ToList();
+            ViewBag.Status = status; ViewBag.Date = date; ViewBag.DoctorName = doctorName;
+            return View(appointments);
+        }
+
+        public IActionResult TodayAppointments()
+        {
+            var today = DateTime.Today;
+            var appointments = _context.Appointments.Include(a => a.Patient).Include(a => a.Doctor).ThenInclude(d => d.User).Include(a => a.Doctor).ThenInclude(d => d.Specialty).Where(a => a.AppointmentDate == today).OrderBy(a => a.AppointmentTime).ToList();
+            ViewBag.WaitingCount = appointments.Count(a => a.Status == "Đã đặt");
+            ViewBag.DoneCount = appointments.Count(a => a.Status == "Đã khám");
+            ViewBag.CancelledCount = appointments.Count(a => a.Status == "Đã hủy");
+            return View(appointments);
+        }
+
+        [HttpPost][ValidateAntiForgeryToken]
+        public IActionResult UpdateAppointmentStatus(int id, string status)
+        {
+            var a = _context.Appointments.Find(id);
+            if (a != null) { a.Status = status; _context.SaveChanges(); TempData["SuccessMessage"] = "Cập nhật trạng thái thành công!"; }
+            return RedirectToAction("TodayAppointments");
+        }
+
+        [HttpGet]
+        public IActionResult CreateAppointment()
+        {
+            ViewBag.Patients = _context.Users.Where(u => u.Role == "Patient").OrderBy(u => u.FullName).ToList();
+            ViewBag.Doctors = _context.Doctors.Include(d => d.User).Include(d => d.Specialty).ToList();
+            ViewBag.TimeSlots = new[] { "08:00", "09:00", "10:00", "11:00", "13:00", "14:00", "15:00", "16:00", "17:00" };
+            return View();
+        }
+
+        [HttpPost][ValidateAntiForgeryToken]
+        public IActionResult CreateAppointment(int patientId, int doctorId, DateTime appointmentDate, string appointmentTime, string reason)
+        {
+            if (patientId == 0 || doctorId == 0 || appointmentDate == default || string.IsNullOrEmpty(appointmentTime) || string.IsNullOrEmpty(reason))
+            { TempData["ErrorMessage"] = "Vui lòng điền đầy đủ thông tin!"; return RedirectToAction("CreateAppointment"); }
+            var conflict = _context.Appointments.Any(a => a.DoctorId == doctorId && a.AppointmentDate == appointmentDate.Date && a.AppointmentTime == appointmentTime && a.Status != "Đã hủy");
+            if (conflict) { TempData["ErrorMessage"] = "Bác sĩ đã có lịch hẹn vào khung giờ này! Vui lòng chọn giờ khác."; return RedirectToAction("CreateAppointment"); }
+            _context.Appointments.Add(new Appointment { PatientId = patientId, DoctorId = doctorId, AppointmentDate = appointmentDate.Date, AppointmentTime = appointmentTime, Reason = reason, Status = "Đã đặt" });
+            _context.SaveChanges();
+            TempData["SuccessMessage"] = "Tạo lịch hẹn thành công!";
+            return RedirectToAction("Appointments");
+        }
+
+        [HttpGet]
+        public IActionResult EditAppointment(int id)
+        {
+            var a = _context.Appointments.Include(x => x.Patient).Include(x => x.Doctor).ThenInclude(d => d.User).FirstOrDefault(x => x.AppointmentId == id);
+            if (a == null) return NotFound();
+            ViewBag.Patients = _context.Users.Where(u => u.Role == "Patient").OrderBy(u => u.FullName).ToList();
+            ViewBag.Doctors = _context.Doctors.Include(d => d.User).Include(d => d.Specialty).ToList();
+            ViewBag.TimeSlots = new[] { "08:00", "09:00", "10:00", "11:00", "13:00", "14:00", "15:00", "16:00", "17:00" };
+            ViewBag.Statuses = new[] { "Đã đặt", "Đã khám", "Đã hủy" };
+            return View(a);
+        }
+
+        [HttpPost][ValidateAntiForgeryToken]
+        public IActionResult EditAppointment(int appointmentId, int patientId, int doctorId, DateTime appointmentDate, string appointmentTime, string reason, string status)
+        {
+            var a = _context.Appointments.Find(appointmentId);
+            if (a == null) return NotFound();
+            var conflict = _context.Appointments.Any(x => x.AppointmentId != appointmentId && x.DoctorId == doctorId && x.AppointmentDate == appointmentDate.Date && x.AppointmentTime == appointmentTime && x.Status != "Đã hủy");
+            if (conflict) { TempData["ErrorMessage"] = "Bác sĩ đã có lịch hẹn vào khung giờ này!"; return RedirectToAction("EditAppointment", new { id = appointmentId }); }
+            a.PatientId = patientId; a.DoctorId = doctorId; a.AppointmentDate = appointmentDate.Date; a.AppointmentTime = appointmentTime; a.Reason = reason; a.Status = status;
+            _context.SaveChanges();
+            TempData["SuccessMessage"] = "Cập nhật lịch hẹn thành công!";
+            return RedirectToAction("Appointments");
+        }
+
+        [HttpPost][ValidateAntiForgeryToken]
+        public IActionResult DeleteAppointment(int id)
+        {
+            var a = _context.Appointments.Include(x => x.MedicalRecord).FirstOrDefault(x => x.AppointmentId == id);
+            if (a != null)
+            {
+                if (a.MedicalRecord != null) _context.MedicalRecords.Remove(a.MedicalRecord);
+                _context.Appointments.Remove(a);
+                _context.SaveChanges();
+                TempData["SuccessMessage"] = "Xóa lịch hẹn thành công!";
+            }
+            return RedirectToAction("Appointments");
+        }
+
+        // ==================== API ENDPOINTS ====================
+        [HttpGet]
+        public JsonResult GetAvailableTimeSlots(int doctorId, DateTime date)
+        {
+            var allSlots = new[] { "08:00", "09:00", "10:00", "11:00", "13:00", "14:00", "15:00", "16:00", "17:00" };
+            var bookedSlots = _context.Appointments
+                .Where(a => a.DoctorId == doctorId && a.AppointmentDate == date.Date && a.Status != "Đã hủy")
+                .Select(a => a.AppointmentTime).ToList();
+            return Json(allSlots.Except(bookedSlots).ToList());
+        }
+
+        [HttpGet]
+        public JsonResult GetDoctorsBySpecialty(int specialtyId)
+        {
+            var doctors = _context.Doctors.Include(d => d.User)
+                .Where(d => d.SpecialtyId == specialtyId)
+                .Select(d => new { doctorId = d.DoctorId, fullName = d.User.FullName, degree = d.Degree })
+                .ToList();
+            return Json(doctors);
+        }
+
+        // ==================== THỐNG KÊ ====================
+        public IActionResult Statistics()
+        {
+            var monthlyStats = _context.Appointments
+                .GroupBy(a => new { a.AppointmentDate.Year, a.AppointmentDate.Month })
+                .Select(g => new { Year = g.Key.Year, Month = g.Key.Month, Total = g.Count(), Done = g.Count(x => x.Status == "Đã khám"), Waiting = g.Count(x => x.Status == "Đã đặt"), Cancelled = g.Count(x => x.Status == "Đã hủy") })
+                .OrderByDescending(x => x.Year).ThenByDescending(x => x.Month).Take(12).ToList();
+
+            var topDoctors = _context.Appointments
+                .Include(a => a.Doctor).ThenInclude(d => d.User).Include(a => a.Doctor).ThenInclude(d => d.Specialty)
+                .GroupBy(a => new { a.Doctor.DoctorId, a.Doctor.User.FullName, SpecialtyName = a.Doctor.Specialty.SpecialtyName })
+                .Select(g => new { DoctorName = g.Key.FullName, SpecialtyName = g.Key.SpecialtyName, AppointmentCount = g.Count(), DoneCount = g.Count(x => x.Status == "Đã khám") })
+                .OrderByDescending(x => x.AppointmentCount).Take(5).ToList();
+
+            ViewBag.TotalAppointments = _context.Appointments.Count();
+            ViewBag.TotalDone = _context.Appointments.Count(a => a.Status == "Đã khám");
+            ViewBag.TotalWaiting = _context.Appointments.Count(a => a.Status == "Đã đặt");
+            ViewBag.TotalCancelled = _context.Appointments.Count(a => a.Status == "Đã hủy");
+            ViewBag.TodayTotal = _context.Appointments.Count(a => a.AppointmentDate == DateTime.Today);
+            ViewBag.TodayDone = _context.Appointments.Count(a => a.AppointmentDate == DateTime.Today && a.Status == "Đã khám");
+            ViewBag.TodayWaiting = _context.Appointments.Count(a => a.AppointmentDate == DateTime.Today && a.Status == "Đã đặt");
+            ViewBag.MonthlyStats = monthlyStats;
+            ViewBag.TopDoctors = topDoctors;
+            return View();
+        }
+    }
+}

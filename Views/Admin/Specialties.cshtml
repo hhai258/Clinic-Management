@@ -1,0 +1,72 @@
+@model IEnumerable<Specialty>
+@{
+    ViewData["Title"] = "Quản lý Chuyên khoa";
+}
+
+<div class="page-header">
+    <h2>
+        <div class="icon" style="background:#fef3c7;color:#92400e"><i class="fas fa-stethoscope"></i></div>
+        Quản lý Chuyên khoa
+    </h2>
+    <a asp-action="CreateSpecialty" class="btn btn-primary">
+        <i class="fas fa-plus me-1"></i>Thêm chuyên khoa mới
+    </a>
+</div>
+
+@if (TempData["SuccessMessage"] != null)
+{
+    <div class="alert alert-success alert-dismissible fade show mb-3">
+        <i class="fas fa-check-circle me-2"></i>@TempData["SuccessMessage"]
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+}
+@if (TempData["ErrorMessage"] != null)
+{
+    <div class="alert alert-danger alert-dismissible fade show mb-3">
+        <i class="fas fa-exclamation-circle me-2"></i>@TempData["ErrorMessage"]
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+}
+
+<div class="card">
+    <div class="card-body p-0">
+        @if (!Model.Any())
+        {
+            <div class="text-center py-5 text-muted">
+                <i class="fas fa-notes-medical fa-3x mb-3 d-block opacity-25"></i>
+                Chưa có chuyên khoa nào được tạo.
+            </div>
+        }
+        else
+        {
+            <div class="table-responsive">
+                <table class="table table-hover mb-0">
+                    <thead>
+                        <tr>
+                            <th style="width:250px">Tên chuyên khoa</th>
+                            <th>Mô tả</th>
+                            <th class="text-center" style="width:120px">Thao tác</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var specialty in Model)
+                        {
+                            <tr>
+                                <td><span class="fw-700 text-dark">@specialty.SpecialtyName</span></td>
+                                <td><span class="text-muted text-sm">@specialty.Description</span></td>
+                                <td class="text-center">
+                                    <form asp-action="DeleteSpecialty" asp-route-id="@specialty.SpecialtyId" method="post" class="d-inline" onsubmit="return confirm('Bạn có chắc muốn xóa chuyên khoa này?')">
+                                        @Html.AntiForgeryToken()
+                                        <button type="submit" class="btn btn-outline-danger btn-sm" title="Xóa chuyên khoa">
+                                            <i class="fas fa-trash-alt me-1"></i>Xóa
+                                        </button>
+                                    </form>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
+    </div>
+</div>

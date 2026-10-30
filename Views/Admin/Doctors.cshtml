@@ -1,0 +1,53 @@
+@model IEnumerable<ClinicManagement.Models.Doctor>
+@{ViewData["Title"] = "Quản lý Bác sĩ";}
+<div class="page-header">
+    <h2><div class="icon" style="background:#d1fae5;color:#065f46"><i class="fas fa-user-md"></i></div>Quản lý Bác sĩ</h2>
+    <a asp-action="CreateDoctor" class="btn btn-success"><i class="fas fa-plus me-1"></i>Thêm bác sĩ</a>
+</div>
+<div class="card mb-3">
+    <div class="card-body py-2">
+        <form method="get" class="d-flex gap-2">
+            <input type="text" name="search" class="form-control form-control-sm" placeholder="Tìm theo tên, chuyên khoa..." value="@ViewBag.Search" style="max-width:300px" />
+            <button type="submit" class="btn btn-primary btn-sm"><i class="fas fa-search"></i></button>
+            <a asp-action="Doctors" class="btn btn-outline-secondary btn-sm">Xóa lọc</a>
+        </form>
+    </div>
+</div>
+<div class="card">
+    <div class="card-body p-0">
+        <div class="table-responsive">
+        <table class="table table-hover mb-0">
+            <thead>
+                <tr><th>Ảnh</th><th>Họ tên</th><th>Chuyên khoa</th><th>Học vị</th><th>Kinh nghiệm</th><th>Giá khám</th><th>SĐT</th><th class="text-center">Thao tác</th></tr>
+            </thead>
+            <tbody>
+                @foreach (var d in Model)
+                {
+                    <tr>
+                        <td>
+                            @if (!string.IsNullOrEmpty(d.PhotoUrl))
+                            {<img src="@d.PhotoUrl" style="width:44px;height:44px;border-radius:50%;object-fit:cover;border:2px solid #e2e8f0" alt="" />}
+                            else
+                            {<div style="width:44px;height:44px;border-radius:50%;background:linear-gradient(135deg,#dbeafe,#ede9fe);display:flex;align-items:center;justify-content:center;color:#93c5fd;font-size:1.1rem"><i class="fas fa-user-md"></i></div>}
+                        </td>
+                        <td><div class="fw-600">@d.User.FullName</div><div class="text-sm text-muted">@d.User.Email</div></td>
+                        <td><span class="badge" style="background:#dbeafe;color:#2563eb">@d.Specialty.SpecialtyName</span></td>
+                        <td>@d.Degree</td>
+                        <td>@d.Experience năm</td>
+                        <td>@d.ExaminationFee.ToString("N0")₫</td>
+                        <td>@d.User.PhoneNumber</td>
+                        <td class="text-center">
+                            <a asp-action="EditDoctor" asp-route-id="@d.DoctorId" class="btn btn-warning btn-sm"><i class="fas fa-edit"></i></a>
+                            <form asp-action="DeleteDoctor" method="post" class="d-inline">
+                                @Html.AntiForgeryToken()
+                                <input type="hidden" name="id" value="@d.DoctorId" />
+                                <button type="submit" class="btn btn-danger btn-sm" onclick="return confirm('Xóa bác sĩ @d.User.FullName?')"><i class="fas fa-trash"></i></button>
+                            </form>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+        </div>
+    </div>
+</div>

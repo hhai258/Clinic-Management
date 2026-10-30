@@ -1,0 +1,134 @@
+@model IEnumerable<ClinicManagement.Models.Appointment>
+@{
+    ViewData["Title"] = "Quản lý Lịch hẹn";
+    string curStatus = ViewBag.Status as string ?? "";
+    string curDate = ViewBag.Date as string ?? "";
+    string curDoctor = ViewBag.DoctorName as string ?? "";
+}
+
+<div class="page-header">
+    <h2><div class="icon" style="background:#ede9fe;color:#5b21b6"><i class="fas fa-calendar-alt"></i></div>Quản lý Lịch hẹn</h2>
+    <div class="d-flex gap-2">
+        <a asp-action="TodayAppointments" class="btn btn-info btn-sm text-white"><i class="fas fa-calendar-day me-1"></i>Hôm nay</a>
+        <a asp-action="CreateAppointment" class="btn btn-success btn-sm"><i class="fas fa-plus me-1"></i>Tạo lịch hẹn</a>
+    </div>
+</div>
+
+<div class="card mb-3">
+    <div class="card-body py-2">
+        <form method="get" class="row g-2 align-items-end">
+            <div class="col-md-3">
+                <label class="form-label mb-1 small">Trạng thái</label>
+                <select name="status" class="form-select form-select-sm" onchange="this.form.submit()">
+                    <option value="">Tất cả trạng thái</option>
+                    @if (curStatus == "Đã đặt")
+                        {
+                            <option value="Đã đặt" selected="selected">Chờ khám</option>
+                        }
+                        else
+                        {
+                            <option value="Đã đặt">Chờ khám</option>
+                        }
+                    @if (curStatus == "Đã khám")
+                        {
+                            <option value="Đã khám" selected="selected">Đã khám</option>
+                        }
+                        else
+                        {
+                            <option value="Đã khám">Đã khám</option>
+                        }
+                    @if (curStatus == "Đã hủy")
+                        {
+                            <option value="Đã hủy" selected="selected">Đã hủy</option>
+                        }
+                        else
+                        {
+                            <option value="Đã hủy">Đã hủy</option>
+                        }
+                </select>
+            </div>
+            <div class="col-md-3">
+                <label class="form-label mb-1 small">Ngày khám</label>
+                <input type="date" name="date" class="form-control form-control-sm" value="@curDate" />
+            </div>
+            <div class="col-md-3">
+                <label class="form-label mb-1 small">Tên bác sĩ</label>
+                <input type="text" name="doctorName" class="form-control form-control-sm" placeholder="Tìm tên bác sĩ..." value="@curDoctor" />
+            </div>
+            <div class="col-auto">
+                <button type="submit" class="btn btn-primary btn-sm"><i class="fas fa-search me-1"></i>Lọc</button>
+                <a asp-action="Appointments" class="btn btn-outline-secondary btn-sm ms-1">Xóa lọc</a>
+            </div>
+        </form>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-body p-0">
+        @if (!Model.Any())
+        {
+            <div class="text-center py-5 text-muted">
+                <i class="fas fa-calendar-times fa-3x mb-3 d-block opacity-25"></i>
+                Không có lịch hẹn nào phù hợp
+            </div>
+        }
+        else
+        {
+            <div class="table-responsive">
+                <table class="table table-hover mb-0">
+                    <thead>
+                        <tr>
+                            <th>#</th>
+                            <th>Bệnh nhân</th>
+                            <th>Bác sĩ</th>
+                            <th>Chuyên khoa</th>
+                            <th>Ngày</th>
+                            <th>Giờ</th>
+                            <th>Trạng thái</th>
+                            <th class="text-center">Thao tác</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var a in Model)
+                        {
+                            <tr>
+                                <td class="text-muted small">@a.AppointmentId</td>
+                                <td>
+                                    <div class="fw-600">@a.Patient.FullName</div>
+                                    <small class="text-muted">@a.Patient.PhoneNumber</small>
+                                </td>
+                                <td><div class="fw-600">@a.Doctor.User.FullName</div></td>
+                                <td><span class="badge" style="background:#dbeafe;color:#2563eb">@a.Doctor.Specialty.SpecialtyName</span></td>
+                                <td>
+                                    @if (a.AppointmentDate == DateTime.Today)
+                                    {
+                                        <span class="badge bg-primary me-1">Hôm nay</span>
+                                    }
+                                    @a.AppointmentDate.ToString("dd/MM/yyyy")
+                                </td>
+                                <td><span class="badge bg-light text-dark border">@a.AppointmentTime</span></td>
+                                <td>
+                                    @if (a.Status == "Đã đặt")
+                                    {<span class="badge bg-warning text-dark">Chờ khám</span>}
+                                    else if (a.Status == "Đã khám")
+                                    {<span class="badge bg-success">Đã khám</span>}
+                                    else
+                                    {<span class="badge bg-danger">Đã hủy</span>}
+                                </td>
+                                <td class="text-center">
+                                    <a asp-action="EditAppointment" asp-route-id="@a.AppointmentId" class="btn btn-warning btn-sm"><i class="fas fa-edit"></i></a>
+                                    <form asp-action="DeleteAppointment" method="post" class="d-inline">
+                                        @Html.AntiForgeryToken()
+                                        <input type="hidden" name="id" value="@a.AppointmentId" />
+                                        <button type="submit" class="btn btn-danger btn-sm" onclick="return confirm('Xóa lịch hẹn này?')"><i class="fas fa-trash"></i></button>
+                                    </form>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+            <div class="px-3 py-2 text-muted small border-top">Tổng: @Model.Count() lịch hẹn</div>
+        }
+    </div>
+</div>

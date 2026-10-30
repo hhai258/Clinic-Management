@@ -1,0 +1,113 @@
+@model IEnumerable<ClinicManagement.Models.Appointment>
+@{
+    ViewData["Title"] = "Tất cả lịch hẹn của tôi";
+    string curStatus = ViewBag.Status as string ?? "";
+}
+<div class="page-header">
+    <h2><i class="fas fa-calendar-alt me-2 text-primary"></i>Tất cả lịch hẹn của tôi</h2>
+    <a asp-action="Index" class="btn btn-primary btn-sm"><i class="fas fa-calendar-day me-1"></i>Hôm nay</a>
+</div>
+<div class="card mb-3">
+    <div class="card-body py-2">
+        <form method="get" class="d-flex gap-2 flex-wrap">
+            <select name="status" class="form-select form-select-sm" style="max-width:180px" onchange="this.form.submit()">
+                <option value="">Tất cả trạng thái</option>
+                @if (curStatus == "Đã đặt")
+                        {
+                            <option value="Đã đặt" selected="selected">Chờ khám</option>
+                        }
+                        else
+                        {
+                            <option value="Đã đặt">Chờ khám</option>
+                        }
+                @if (curStatus == "Đã khám")
+                        {
+                            <option value="Đã khám" selected="selected">Đã khám</option>
+                        }
+                        else
+                        {
+                            <option value="Đã khám">Đã khám</option>
+                        }
+                @if (curStatus == "Đã hủy")
+                        {
+                            <option value="Đã hủy" selected="selected">Đã hủy</option>
+                        }
+                        else
+                        {
+                            <option value="Đã hủy">Đã hủy</option>
+                        }
+            </select>
+        </form>
+    </div>
+</div>
+<div class="card">
+    <div class="card-body p-0">
+        @if (!Model.Any())
+        {
+            <div class="text-center py-5 text-muted">
+                <i class="fas fa-calendar-times fa-3x mb-3 d-block opacity-25"></i>
+                Không có lịch hẹn nào
+            </div>
+        }
+        else
+        {
+            <div class="table-responsive">
+                <table class="table table-hover mb-0">
+                    <thead>
+                        <tr>
+                            <th>Ngày</th>
+                            <th>Giờ</th>
+                            <th>Bệnh nhân</th>
+                            <th>Lý do</th>
+                            <th>Trạng thái</th>
+                            <th class="text-center">Thao tác</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var a in Model)
+                        {
+                            <tr>
+                                <td>
+                                    @if (a.AppointmentDate == DateTime.Today)
+                                    {
+                                        <span class="badge bg-primary me-1">Hôm nay</span>
+                                    }
+                                    @a.AppointmentDate.ToString("dd/MM/yyyy")
+                                </td>
+                                <td><span class="badge bg-light text-dark border">@a.AppointmentTime</span></td>
+                                <td>
+                                    <div class="fw-600">@a.Patient.FullName</div>
+                                    <small class="text-muted">@a.Patient.PhoneNumber</small>
+                                </td>
+                                <td><small>@(a.Reason.Length > 40 ? a.Reason.Substring(0, 40) + "..." : a.Reason)</small></td>
+                                <td>
+                                    @if (a.Status == "Đã đặt")
+                                    {<span class="badge bg-warning text-dark">Chờ khám</span>}
+                                    else if (a.Status == "Đã khám")
+                                    {<span class="badge bg-success">Đã khám</span>}
+                                    else
+                                    {<span class="badge bg-danger">Đã hủy</span>}
+                                </td>
+                                <td class="text-center">
+                                    <div class="d-flex gap-1 justify-content-center">
+                                        @if (a.Status == "Đã đặt")
+                                        {
+                                            <a asp-action="Examine" asp-route-id="@a.AppointmentId"
+                                               class="btn btn-primary btn-sm">
+                                                <i class="fas fa-stethoscope me-1"></i>Khám
+                                            </a>
+                                        }
+                                        <a asp-action="PatientHistory" asp-route-patientId="@a.PatientId"
+                                           class="btn btn-outline-info btn-sm" title="Tiền sử bệnh">
+                                            <i class="fas fa-history"></i>
+                                        </a>
+                                    </div>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
+    </div>
+</div>

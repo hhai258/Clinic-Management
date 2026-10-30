@@ -1,0 +1,248 @@
+﻿// Tệp: Controllers/PatientController.cs
+// Mô tả: Controller chứa các action dành cho bệnh nhân đã xác thực để
+//         duyệt bác sĩ, đặt và quản lý lịch hẹn, xem hồ sơ bệnh án và thông tin cá nhân.
+// Ghi chú: Controller này giả định ứng dụng sử dụng phân quyền theo vai trò
+//          và id người dùng bệnh nhân được lưu trong claim ClaimTypes.NameIdentifier.
+
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
+using ClinicManagement.Data;
+using ClinicManagement.Models;
+using ClinicManagement.Models.ViewModels;
+using System.Security.Claims;
+
+namespace ClinicManagement.Controllers
+{
+    [Authorize(Roles = "Patient")]
+    /// <summary>
+    /// Handles all patient-facing actions such as listing doctors, booking
+    /// appointments, viewing appointment lists and medical records, and
+    /// editing the patient's profile.
+    /// </summary>
+    public class PatientController : Controller
+    {
+        // DbContext của EF Core dùng để truy vấn và lưu trữ các thực thể domain.
+        private readonly ApplicationDbContext _context;
+
+        /// <summary>
+        /// Hàm dựng controller. DbContext được tiêm bởi Dependency Injection.
+        /// </summary>
+        /// <param name="context">DbContext của ứng dụng</param>
+        public PatientController(ApplicationDbContext context) { _context = context; }
+
+        /// <summary>
+        /// Phương thức trợ giúp lấy id của người dùng đang đăng nhập từ claims.
+        /// Sẽ ném nếu claim không tồn tại hoặc không thể parse sang int.
+        /// </summary>
+        /// <returns>Id người dùng (int) từ ClaimTypes.NameIdentifier</returns>
+        private int GetUserId() => int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+
+        /// <summary>
+        /// Trang tổng quan cho bệnh nhân. Hiển thị các lịch hẹn sắp tới và một số
+        /// thống kê tóm tắt (tổng số lịch, đã khám, đang chờ).
+        /// </summary>
+        /// <returns>View chứa danh sách các lịch hẹn sắp tới</returns>
+        public IActionResult Index()
+        {
+            var userId = GetUserId();
+            var upcomingAppointments = _context.Appointments
+                .Include(a => a.Doctor).ThenInclude(d => d.User).Include(a => a.Doctor).ThenInclude(d => d.Specialty)
+                .Where(a => a.PatientId == userId && a.Status == "Đã đặt")
+                .OrderBy(a => a.AppointmentDate).ThenBy(a => a.AppointmentTime).ToList();
+
+            var patient = _context.Users.Find(userId);
+            ViewBag.Patient = patient;
+            ViewBag.TotalAppointments = _context.Appointments.Count(a => a.PatientId == userId);
+            ViewBag.TotalDone = _context.Appointments.Count(a => a.PatientId == userId && a.Status == "Đã khám");
+            ViewBag.TotalWaiting = _context.Appointments.Count(a => a.PatientId == userId && a.Status == "Đã đặt");
+            return View(upcomingAppointments);
+        }
+
+        /// <summary>
+        /// Liệt kê bác sĩ, có thể lọc theo chuyên khoa hoặc từ khóa tìm kiếm.
+        /// Thiết lập ViewBag cho danh sách chuyên khoa và bộ lọc được chọn.
+        /// </summary>
+        /// <param name="specialtyId">Id chuyên khoa (tùy chọn) để lọc bác sĩ</param>
+        /// <param name="search">Từ khóa tìm kiếm (tên bác sĩ hoặc tên chuyên khoa)</param>
+        /// <returns>View chứa danh sách bác sĩ đã lọc</returns>
+        public IActionResult Doctors(int? specialtyId, string? search)
+        {
+            var query = _context.Doctors.Include(d => d.User).Include(d => d.Specialty).AsQueryable();
+            if (specialtyId.HasValue) query = query.Where(d => d.SpecialtyId == specialtyId.Value);
+            if (!string.IsNullOrEmpty(search)) query = query.Where(d => d.User.FullName.Contains(search) || d.Specialty.SpecialtyName.Contains(search));
+            ViewBag.Specialties = _context.Specialties.ToList();
+            ViewBag.SelectedSpecialty = specialtyId;
+            ViewBag.Search = search;
+            return View(query.ToList());
+        }
+
+        /// <summary>
+        /// GET: Chuẩn bị trang đặt lịch. Nếu truyền doctorId thì sẽ chọn trước
+        /// bác sĩ và chuyên khoa tương ứng, đồng thời đặt ngày mặc định.
+        /// </summary>
+        /// <param name="doctorId">Id bác sĩ (tùy chọn) để chọn trước</param>
+        /// <returns>View với BookAppointmentViewModel</returns>
+        public IActionResult BookAppointment(int? doctorId)
+        {
+            var model = new BookAppointmentViewModel { Specialties = _context.Specialties.ToList(), AppointmentDate = DateTime.Today.AddDays(1) };
+            if (doctorId.HasValue)
+            {
+                var doctor = _context.Doctors.Include(d => d.User).Include(d => d.Specialty).FirstOrDefault(d => d.DoctorId == doctorId.Value);
+                if (doctor != null) { model.SpecialtyId = doctor.SpecialtyId; model.DoctorId = doctor.DoctorId; model.Doctors = new List<Doctor> { doctor }; }
+            }
+            return View(model);
+        }
+
+        /// <summary>
+        /// API AJAX: trả về danh sách bác sĩ (JSON) thuộc chuyên khoa được chọn.
+        /// Dùng để client cập nhật danh sách bác sĩ động.
+        /// </summary>
+        /// <param name="specialtyId">Id chuyên khoa</param>
+        /// <returns>Mảng JSON chứa các thông tin bác sĩ đơn giản</returns>
+        [HttpGet]
+        public JsonResult GetDoctorsBySpecialty(int specialtyId)
+        {
+            var doctors = _context.Doctors.Include(d => d.User).Where(d => d.SpecialtyId == specialtyId)
+                .Select(d => new { doctorId = d.DoctorId, fullName = d.User.FullName, degree = d.Degree, experience = d.Experience, examinationFee = d.ExaminationFee, photoUrl = d.PhotoUrl })
+                .ToList();
+            return Json(doctors);
+        }
+
+        /// <summary>
+        /// API AJAX: trả về các khung giờ có sẵn cho bác sĩ trong một ngày cụ thể,
+        /// bằng cách loại bỏ các khung giờ đã bị đặt (không bao gồm các lịch đã hủy).
+        /// </summary>
+        /// <param name="doctorId">Id bác sĩ</param>
+        /// <param name="date">Ngày cần kiểm tra</param>
+        /// <returns>Danh sách JSON các chuỗi thời gian có sẵn</returns>
+        [HttpGet]
+        public JsonResult GetAvailableTimeSlots(int doctorId, DateTime date)
+        {
+            var allSlots = new[] { "08:00", "09:00", "10:00", "11:00", "13:00", "14:00", "15:00", "16:00", "17:00" };
+            var bookedSlots = _context.Appointments.Where(a => a.DoctorId == doctorId && a.AppointmentDate == date && a.Status != "Đã hủy").Select(a => a.AppointmentTime).ToList();
+            return Json(allSlots.Except(bookedSlots).ToList());
+        }
+
+        /// <summary>
+        /// POST: Thực hiện tạo lịch hẹn mới cho bệnh nhân hiện tại.
+        /// Thực hiện kiểm tra không cho đặt lịch trong quá khứ và không trùng lịch.
+        /// </summary>
+        /// <param name="model">Dữ liệu đặt lịch gửi từ form</param>
+        /// <returns>Chuyển hướng về MyAppointments khi thành công hoặc trả về view với lỗi</returns>
+        [HttpPost][ValidateAntiForgeryToken]
+        public IActionResult BookAppointment(BookAppointmentViewModel model)
+        {
+            if (ModelState.IsValid)
+            {
+                var userId = GetUserId();
+                if (model.AppointmentDate < DateTime.Today) { ModelState.AddModelError("AppointmentDate", "Ngày hẹn phải từ hôm nay trở đi"); model.Specialties = _context.Specialties.ToList(); return View(model); }
+                var isDuplicate = _context.Appointments.Any(a => a.DoctorId == model.DoctorId && a.AppointmentDate == model.AppointmentDate && a.AppointmentTime == model.AppointmentTime && a.Status != "Đã hủy");
+                if (isDuplicate) { ModelState.AddModelError("", "Lịch hẹn này đã được đặt. Vui lòng chọn giờ khác."); model.Specialties = _context.Specialties.ToList(); return View(model); }
+                _context.Appointments.Add(new Appointment { PatientId = userId, DoctorId = model.DoctorId, AppointmentDate = model.AppointmentDate, AppointmentTime = model.AppointmentTime, Reason = model.Reason, Status = "Đã đặt" });
+                _context.SaveChanges();
+                TempData["SuccessMessage"] = "Đặt lịch khám thành công!";
+                return RedirectToAction("MyAppointments");
+            }
+            model.Specialties = _context.Specialties.ToList();
+            return View(model);
+        }
+
+        /// <summary>
+        /// Liệt kê tất cả lịch hẹn của bệnh nhân hiện tại (cả quá khứ và tương lai).
+        /// </summary>
+        /// <returns>View chứa danh sách lịch hẹn của bệnh nhân</returns>
+        public IActionResult MyAppointments()
+        {
+            var userId = GetUserId();
+            var appointments = _context.Appointments.Include(a => a.Doctor).ThenInclude(d => d.User).Include(a => a.Doctor).ThenInclude(d => d.Specialty)
+                .Where(a => a.PatientId == userId).OrderByDescending(a => a.AppointmentDate).ThenBy(a => a.AppointmentTime).ToList();
+            return View(appointments);
+        }
+
+        /// <summary>
+        /// Hủy lịch hẹn nếu lịch thuộc về bệnh nhân hiện tại và có thể hủy
+        /// (phải hủy trước ít nhất 1 ngày). Dùng POST để ngăn CSRF.
+        /// </summary>
+        /// <param name="id">Id lịch hẹn cần hủy</param>
+        /// <returns>Chuyển hướng về MyAppointments</returns>
+        [HttpPost][ValidateAntiForgeryToken]
+        public IActionResult CancelAppointment(int id)
+        {
+            var userId = GetUserId();
+            var a = _context.Appointments.Find(id);
+            if (a != null && a.PatientId == userId && a.Status == "Đã đặt")
+            {
+                if ((a.AppointmentDate - DateTime.Today).Days >= 1) { a.Status = "Đã hủy"; _context.SaveChanges(); TempData["SuccessMessage"] = "Hủy lịch hẹn thành công!"; }
+                else TempData["ErrorMessage"] = "Chỉ có thể hủy lịch trước 1 ngày!";
+            }
+            return RedirectToAction("MyAppointments");
+        }
+
+        /// <summary>
+        /// Trả về hồ sơ bệnh án liên quan đến bệnh nhân hiện tại.
+        /// Các bản ghi trả về bao gồm thông tin cuộc hẹn và bác sĩ liên quan.
+        /// </summary>
+        /// <returns>View chứa danh sách hồ sơ bệnh án của bệnh nhân</returns>
+        public IActionResult MedicalHistory()
+        {
+            var userId = GetUserId();
+            var records = _context.MedicalRecords.Include(m => m.Appointment).ThenInclude(a => a.Doctor).ThenInclude(d => d.User).Include(m => m.Appointment).ThenInclude(a => a.Doctor).ThenInclude(d => d.Specialty)
+                .Where(m => m.Appointment.PatientId == userId).OrderByDescending(m => m.ExaminationDate).ToList();
+            return View(records);
+        }
+
+        /// <summary>
+        /// Hiển thị chi tiết một hồ sơ bệnh án cụ thể thuộc về bệnh nhân hiện tại.
+        /// Trả về 404 nếu không tìm thấy hoặc hồ sơ không thuộc về bệnh nhân.
+        /// </summary>
+        /// <param name="id">Id hồ sơ bệnh án</param>
+        /// <returns>View chi tiết hồ sơ bệnh án hoặc NotFound()</returns>
+        public IActionResult MedicalRecordDetail(int id)
+        {
+            var userId = GetUserId();
+            var record = _context.MedicalRecords.Include(m => m.Appointment).ThenInclude(a => a.Doctor).ThenInclude(d => d.User).Include(m => m.Appointment).ThenInclude(a => a.Doctor).ThenInclude(d => d.Specialty)
+                .FirstOrDefault(m => m.RecordId == id && m.Appointment.PatientId == userId);
+            if (record == null) return NotFound();
+            return View(record);
+        }
+
+        /// <summary>
+        /// GET: Tải thông tin hồ sơ bệnh nhân để chỉnh sửa. Model trả về là
+        /// UpdateProfileViewModel được gán từ dữ liệu người dùng hiện tại.
+        /// </summary>
+        /// <returns>View chứa form chỉnh sửa hồ sơ</returns>
+        public IActionResult Profile()
+        {
+            var userId = GetUserId();
+            var patient = _context.Users.Find(userId);
+            if (patient == null) return NotFound();
+            var model = new UpdateProfileViewModel { FullName = patient.FullName, DateOfBirth = patient.DateOfBirth, Gender = patient.Gender, PhoneNumber = patient.PhoneNumber, Email = patient.Email, Address = patient.Address, EmergencyContact = patient.EmergencyContact, MedicalHistory = patient.MedicalHistory };
+            return View(model);
+        }
+
+        /// <summary>
+        /// POST: Lưu các thay đổi hồ sơ do bệnh nhân gửi. Nếu cung cấp mật khẩu mới
+        /// thì sẽ ghi đè mật khẩu lưu trữ (ví dụ này giả định lưu mật khẩu ở dạng
+        /// thuần văn bản; nên cân nhắc băm mật khẩu thực tế).
+        /// </summary>
+        /// <param name="model">Giá trị hồ sơ do người dùng gửi</param>
+        /// <returns>Chuyển hướng về Profile khi thành công hoặc trả về view với lỗi xác thực</returns>
+        [HttpPost][ValidateAntiForgeryToken]
+        public async Task<IActionResult> Profile(UpdateProfileViewModel model)
+        {
+            if (ModelState.IsValid)
+            {
+                var userId = GetUserId();
+                var patient = await _context.Users.FindAsync(userId);
+                if (patient == null) return NotFound();
+                patient.FullName = model.FullName; patient.DateOfBirth = model.DateOfBirth; patient.Gender = model.Gender; patient.PhoneNumber = model.PhoneNumber; patient.Email = model.Email; patient.Address = model.Address; patient.EmergencyContact = model.EmergencyContact; patient.MedicalHistory = model.MedicalHistory;
+                if (!string.IsNullOrEmpty(model.NewPassword)) patient.Password = model.NewPassword;
+                await _context.SaveChangesAsync();
+                TempData["SuccessMessage"] = "Cập nhật hồ sơ thành công!";
+                return RedirectToAction("Profile");
+            }
+            return View(model);
+        }
+    }
+}

@@ -1,0 +1,193 @@
+@{
+    ViewData["Title"] = "Thống kê hệ thống";
+}
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2><i class="fas fa-chart-bar me-2 text-danger"></i>Thống kê hệ thống</h2>
+    <small class="text-muted">Cập nhật: @DateTime.Now.ToString("dd/MM/yyyy HH:mm")</small>
+</div>
+
+<!-- Tổng quan -->
+<div class="row g-3 mb-4">
+    <div class="col-sm-6 col-xl-3">
+        <div class="card border-0 shadow-sm text-center py-3 border-start border-primary border-4">
+            <div class="fs-1 fw-bold text-primary">@ViewBag.TotalAppointments</div>
+            <div class="text-muted small">Tổng lịch hẹn</div>
+        </div>
+    </div>
+    <div class="col-sm-6 col-xl-3">
+        <div class="card border-0 shadow-sm text-center py-3 border-start border-success border-4">
+            <div class="fs-1 fw-bold text-success">@ViewBag.TotalDone</div>
+            <div class="text-muted small">Đã khám</div>
+        </div>
+    </div>
+    <div class="col-sm-6 col-xl-3">
+        <div class="card border-0 shadow-sm text-center py-3 border-start border-warning border-4">
+            <div class="fs-1 fw-bold text-warning">@ViewBag.TotalWaiting</div>
+            <div class="text-muted small">Chờ khám</div>
+        </div>
+    </div>
+    <div class="col-sm-6 col-xl-3">
+        <div class="card border-0 shadow-sm text-center py-3 border-start border-danger border-4">
+            <div class="fs-1 fw-bold text-danger">@ViewBag.TotalCancelled</div>
+            <div class="text-muted small">Đã hủy</div>
+        </div>
+    </div>
+</div>
+
+<!-- Hôm nay -->
+<div class="card shadow-sm mb-4">
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <span><i class="fas fa-calendar-day me-2 text-info"></i><strong>Lịch hẹn hôm nay</strong> — @DateTime.Today.ToString("dd/MM/yyyy")</span>
+        <a asp-action="TodayAppointments" class="btn btn-info btn-sm text-white">
+            <i class="fas fa-eye me-1"></i>Xem chi tiết
+        </a>
+    </div>
+    <div class="card-body">
+        <div class="row text-center g-3">
+            <div class="col-4">
+                <div class="fs-2 fw-bold text-primary">@ViewBag.TodayTotal</div>
+                <div class="text-muted small">Tổng</div>
+            </div>
+            <div class="col-4">
+                <div class="fs-2 fw-bold text-warning">@ViewBag.TodayWaiting</div>
+                <div class="text-muted small">Chờ khám</div>
+            </div>
+            <div class="col-4">
+                <div class="fs-2 fw-bold text-success">@ViewBag.TodayDone</div>
+                <div class="text-muted small">Đã khám</div>
+            </div>
+        </div>
+        @{
+            int todayTotal = ViewBag.TodayTotal;
+            int todayDone = ViewBag.TodayDone;
+            int pct = todayTotal > 0 ? (int)(todayDone * 100.0 / todayTotal) : 0;
+        }
+        <div class="mt-3">
+            <div class="d-flex justify-content-between small mb-1">
+                <span>Tiến độ khám hôm nay</span>
+                <span>@pct%</span>
+            </div>
+            <div class="progress" style="height:12px">
+                <div class="progress-bar bg-success" style="width:@pct%"></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row g-4">
+    <!-- Biểu đồ theo tháng -->
+    <div class="col-lg-7">
+        <div class="card shadow-sm h-100">
+            <div class="card-header">
+                <i class="fas fa-chart-line me-2 text-primary"></i><strong>Lịch hẹn theo tháng (12 tháng gần nhất)</strong>
+            </div>
+            <div class="card-body">
+                <canvas id="monthlyChart" height="260"></canvas>
+            </div>
+            <div class="card-footer bg-white border-top">
+                <div class="table-responsive">
+                <table class="table table-sm mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Tháng/Năm</th>
+                            <th class="text-center">Tổng</th>
+                            <th class="text-center">Đã khám</th>
+                            <th class="text-center">Chờ khám</th>
+                            <th class="text-center">Đã hủy</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var stat in ViewBag.MonthlyStats)
+                        {
+                            <tr>
+                                <td><strong>@stat.Month/@stat.Year</strong></td>
+                                <td class="text-center"><span class="badge bg-primary">@stat.Total</span></td>
+                                <td class="text-center"><span class="badge bg-success">@stat.Done</span></td>
+                                <td class="text-center"><span class="badge bg-warning text-dark">@stat.Waiting</span></td>
+                                <td class="text-center"><span class="badge bg-danger">@stat.Cancelled</span></td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Top bác sĩ -->
+    <div class="col-lg-5">
+        <div class="card shadow-sm h-100">
+            <div class="card-header">
+                <i class="fas fa-trophy me-2 text-warning"></i><strong>Top 5 Bác sĩ nhiều lịch hẹn nhất</strong>
+            </div>
+            <div class="card-body">
+                <canvas id="doctorChart" height="200"></canvas>
+                <hr />
+                @{int rank = 1;}
+                @foreach (var d in ViewBag.TopDoctors)
+                {
+                    var pctBar = ViewBag.TotalAppointments > 0 ? (int)(d.AppointmentCount * 100.0 / (int)ViewBag.TotalAppointments) : 0;
+                    <div class="mb-3">
+                        <div class="d-flex justify-content-between align-items-center mb-1">
+                            <span>
+                                @if (rank == 1) {<i class="fas fa-medal text-warning me-1"></i>}
+                                else if (rank == 2) {<i class="fas fa-medal text-secondary me-1"></i>}
+                                else if (rank == 3) {<i class="fas fa-medal me-1" style="color:#cd7f32"></i>}
+                                <strong>@d.DoctorName</strong>
+                                <small class="text-muted ms-1">@d.SpecialtyName</small>
+                            </span>
+                            <span>
+                                <span class="badge bg-primary">@d.AppointmentCount</span>
+                                <span class="badge bg-success ms-1">@d.DoneCount đã khám</span>
+                            </span>
+                        </div>
+                        <div class="progress" style="height:8px">
+                            <div class="progress-bar" style="width:@pctBar%"></div>
+                        </div>
+                    </div>
+                    rank++;
+                }
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script>
+(function() {
+    // Monthly chart data
+    var monthlyLabels = [@Html.Raw(string.Join(",", ((IEnumerable<dynamic>)ViewBag.MonthlyStats).Reverse().Select(s => $"\"{s.Month}/{s.Year}\"")))];
+    var monthlyTotal = [@Html.Raw(string.Join(",", ((IEnumerable<dynamic>)ViewBag.MonthlyStats).Reverse().Select(s => s.Total)))];
+    var monthlyDone  = [@Html.Raw(string.Join(",", ((IEnumerable<dynamic>)ViewBag.MonthlyStats).Reverse().Select(s => s.Done)))];
+    var monthlyCancelled = [@Html.Raw(string.Join(",", ((IEnumerable<dynamic>)ViewBag.MonthlyStats).Reverse().Select(s => s.Cancelled)))];
+
+    new Chart(document.getElementById('monthlyChart'), {
+        type: 'bar',
+        data: {
+            labels: monthlyLabels,
+            datasets: [
+                { label: 'Tổng lịch hẹn', data: monthlyTotal, backgroundColor: 'rgba(59,130,246,0.7)', borderRadius: 4 },
+                { label: 'Đã khám', data: monthlyDone, backgroundColor: 'rgba(34,197,94,0.7)', borderRadius: 4 },
+                { label: 'Đã hủy', data: monthlyCancelled, backgroundColor: 'rgba(239,68,68,0.5)', borderRadius: 4 }
+            ]
+        },
+        options: { responsive: true, plugins: { legend: { position: 'top' } }, scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } } }
+    });
+
+    // Doctor chart
+    var docLabels = [@Html.Raw(string.Join(",", ((IEnumerable<dynamic>)ViewBag.TopDoctors).Select(d => $"\"{d.DoctorName}\"")))];
+    var docCounts = [@Html.Raw(string.Join(",", ((IEnumerable<dynamic>)ViewBag.TopDoctors).Select(d => d.AppointmentCount)))];
+
+    new Chart(document.getElementById('doctorChart'), {
+        type: 'doughnut',
+        data: {
+            labels: docLabels,
+            datasets: [{ data: docCounts, backgroundColor: ['#3b82f6','#22c55e','#f59e0b','#8b5cf6','#ef4444'], hoverOffset: 8 }]
+        },
+        options: { responsive: true, plugins: { legend: { position: 'bottom' } } }
+    });
+})();
+</script>
+}

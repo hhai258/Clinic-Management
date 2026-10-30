@@ -1,0 +1,82 @@
+// Tệp: Models/User.cs
+// Mô tả: Mô hình dữ liệu người dùng đại diện cho tất cả vai trò trong hệ thống
+//        (Admin, Doctor, Patient) với thông tin đăng nhập và cá nhân.
+
+using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations.Schema;
+
+namespace ClinicManagement.Models
+{
+    /// <summary>
+    /// Đại diện cho một người dùng trong hệ thống. Có thể là Admin, Bác sĩ hoặc Bệnh nhân.
+    /// Chứa thông tin xác thực và dữ liệu cá nhân cơ bản.
+    /// </summary>
+    public class User
+    {
+        /// <summary>Định danh duy nhất của người dùng (khóa chính)</summary>
+        [Key]
+        public int UserId { get; set; }
+
+        /// <summary>Tên đăng nhập (phải duy nhất)</summary>
+        [Required(ErrorMessage = "Ten dang nhap la bat buoc")]
+        [StringLength(50)]
+        public string Username { get; set; }
+
+        /// <summary>Mật khẩu (Lưu ý: hiện được lưu ở dạng thuần; cần hash trong production)</summary>
+        [Required(ErrorMessage = "Mat khau la bat buoc")]
+        [StringLength(255)]
+        public string Password { get; set; }
+
+        /// <summary>Họ và tên đầy đủ của người dùng</summary>
+        [Required(ErrorMessage = "Ho ten la bat buoc")]
+        [StringLength(100)]
+        public string FullName { get; set; }
+
+        /// <summary>Ngày sinh của người dùng</summary>
+        [Required(ErrorMessage = "Ngay sinh la bat buoc")]
+        [DataType(DataType.Date)]
+        public DateTime DateOfBirth { get; set; }
+
+        /// <summary>Giới tính (Nam/Nữ)</summary>
+        [Required(ErrorMessage = "Gioi tinh la bat buoc")]
+        [StringLength(10)]
+        public string Gender { get; set; }
+
+        /// <summary>Số điện thoại di động (10 chữ số)</summary>
+        [Required(ErrorMessage = "So dien thoai la bat buoc")]
+        [StringLength(10, MinimumLength = 10, ErrorMessage = "So dien thoai phai co 10 so")]
+        [RegularExpression(@"^\d{10}$", ErrorMessage = "So dien thoai phai co 10 chu so")]
+        public string PhoneNumber { get; set; }
+
+        /// <summary>Địa chỉ email</summary>
+        [Required(ErrorMessage = "Email la bat buoc")]
+        [StringLength(100)]
+        [EmailAddress(ErrorMessage = "Email khong hop le")]
+        public string Email { get; set; }
+
+        /// <summary>Vai trò người dùng: Admin, Doctor, hoặc Patient</summary>
+        [Required(ErrorMessage = "Vai tro la bat buoc")]
+        [StringLength(20)]
+        public string Role { get; set; }
+
+        /// <summary>Địa chỉ nhà ở (tùy chọn)</summary>
+        [StringLength(200)]
+        public string? Address { get; set; }
+
+        /// <summary>Liên hệ khẩn cấp (tùy chọn)</summary>
+        [StringLength(100)]
+        public string? EmergencyContact { get; set; }
+
+        /// <summary>Lịch sử bệnh án (tùy chọn, dành cho bệnh nhân)</summary>
+        public string? MedicalHistory { get; set; }
+
+        /// <summary>Thời gian tạo tài khoản (nullable, hoạt động ngay cả trước khi migration chạy)</summary>
+        public DateTime? CreatedAt { get; set; }
+
+        /// <summary>Thuộc tính điều hướng: nếu người dùng là bác sĩ thì tham chiếu đến Doctor</summary>
+        public Doctor? Doctor { get; set; }
+
+        /// <summary>Thuộc tính điều hướng: danh sách các lịch hẹn (dành cho bệnh nhân)</summary>
+        public ICollection<Appointment> Appointments { get; set; } = new List<Appointment>();
+    }
+}

@@ -1,0 +1,48 @@
+// Tệp: Models/MedicalRecord.cs
+// Mô tả: Mô hình dữ liệu hồ sơ khám bệnh, chứa triệu chứng, chẩn đoán và lời dặn dò.
+//        Được tạo sau khi bác sĩ hoàn thành khám bệnh cho một lịch hẹn.
+
+using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations.Schema;
+
+namespace ClinicManagement.Models
+{
+    /// <summary>
+    /// Đại diện cho hồ sơ khám bệnh (kết quả khám). Được tạo khi một cuộc hẹn
+    /// được hoàn thành bởi bác sĩ, chứa triệu chứng, chẩn đoán và lời khuyên.
+    /// </summary>
+    public class MedicalRecord
+    {
+        /// <summary>Định danh duy nhất của hồ sơ khám (khóa chính)</summary>
+        [Key]
+        public int RecordId { get; set; }
+
+        /// <summary>Khóa ngoại liên kết đến Appointment (lịch hẹn này đã được khám)</summary>
+        [Required]
+        [ForeignKey("Appointment")]
+        public int AppointmentId { get; set; }
+
+        /// <summary>Triệu chứng/tình trạng bệnh nhân khi khám</summary>
+        [Required(ErrorMessage = "Triệu chứng là bắt buộc")]
+        [StringLength(1000)]
+        public string Symptoms { get; set; }
+
+        /// <summary>Chẩn đoán/kết luận của bác sĩ sau khám</summary>
+        [Required(ErrorMessage = "Chẩn đoán là bắt buộc")]
+        [StringLength(1000)]
+        public string Diagnosis { get; set; }
+
+        /// <summary>Lời khuyên điều trị và hướng dẫn theo dõi sau khám</summary>
+        [Required(ErrorMessage = "Lời dặn là bắt buộc")]
+        [StringLength(1000)]
+        public string Advice { get; set; }
+
+        /// <summary>Ngày khám (thường trùng với AppointmentDate)</summary>
+        [Required]
+        [DataType(DataType.Date)]
+        public DateTime ExaminationDate { get; set; }
+
+        /// <summary>Thuộc tính điều hướng: lịch hẹn liên quan đến hồ sơ khám này</summary>
+        public Appointment Appointment { get; set; }
+    }
+}

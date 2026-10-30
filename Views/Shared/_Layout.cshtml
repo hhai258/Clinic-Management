@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>@ViewData["Title"] - Phòng Khám Y Khoa</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:ital,wght@0,300..800;1,300..800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
+    <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
+</head>
+<body>
+    <div class="bg-glow-1"></div>
+    <div class="bg-glow-2"></div>
+<header>
+<nav class="navbar navbar-expand-lg">
+    <div class="container">
+        <a class="navbar-brand" asp-controller="Home" asp-action="Index">
+            <div class="brand-icon"><i class="fas fa-hospital-alt"></i></div>
+            <div class="brand-text">Phòng Khám <span>Y Khoa</span></div>
+        </a>
+        <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+            <span class="navbar-toggler-icon"></span>
+        </button>
+        <div class="collapse navbar-collapse" id="navbarNav">
+            <ul class="navbar-nav me-auto">
+                <li class="nav-item">
+                    <a class="nav-link" asp-controller="Home" asp-action="Index">
+                        <i class="fas fa-home me-1"></i>Trang chủ
+                    </a>
+                </li>
+                @if (User.IsInRole("Admin"))
+                {
+                    <li class="nav-item dropdown">
+                        <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">
+                            <i class="fas fa-shield-alt me-1"></i>Quản trị
+                        </a>
+                        <ul class="dropdown-menu">
+                            <li><a class="dropdown-item" asp-controller="Admin" asp-action="Dashboard"><i class="fas fa-tachometer-alt me-2 text-primary"></i>Dashboard</a></li>
+                            <li><hr class="dropdown-divider"></li>
+                            <li><a class="dropdown-item" asp-controller="Admin" asp-action="Doctors"><i class="fas fa-user-md me-2 text-success"></i>Quản lý Bác sĩ</a></li>
+                            <li><a class="dropdown-item" asp-controller="Admin" asp-action="Patients"><i class="fas fa-users me-2 text-info"></i>Quản lý Bệnh nhân</a></li>
+                            <li><a class="dropdown-item" asp-controller="Admin" asp-action="Specialties"><i class="fas fa-stethoscope me-2 text-warning"></i>Chuyên khoa</a></li>
+                            <li><hr class="dropdown-divider"></li>
+                            <li><a class="dropdown-item" asp-controller="Admin" asp-action="TodayAppointments"><i class="fas fa-calendar-day me-2 text-cyan"></i>Lịch hẹn hôm nay</a></li>
+                            <li><a class="dropdown-item" asp-controller="Admin" asp-action="Appointments"><i class="fas fa-calendar-alt me-2 text-purple"></i>Tất cả lịch hẹn</a></li>
+                            <li><a class="dropdown-item" asp-controller="Admin" asp-action="CreateAppointment"><i class="fas fa-calendar-plus me-2 text-success"></i>Tạo lịch hẹn</a></li>
+                            <li><hr class="dropdown-divider"></li>
+                            <li><a class="dropdown-item" asp-controller="Admin" asp-action="Statistics"><i class="fas fa-chart-bar me-2 text-danger"></i>Thống kê</a></li>
+                        </ul>
+                    </li>
+                }
+                @if (User.IsInRole("Doctor"))
+                {
+                    <li class="nav-item">
+                        <a class="nav-link" asp-controller="Doctor" asp-action="Index">
+                            <i class="fas fa-calendar-day me-1"></i>Lịch khám hôm nay
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" asp-controller="Doctor" asp-action="MyAppointments">
+                            <i class="fas fa-list me-1"></i>Tất cả lịch hẹn
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" asp-controller="Doctor" asp-action="BookAppointment">
+                            <i class="fas fa-calendar-plus me-1"></i>Đặt lịch hẹn
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" asp-controller="Doctor" asp-action="CreatePatient">
+                            <i class="fas fa-user-plus me-1"></i>Thêm bệnh nhân
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" asp-controller="Doctor" asp-action="Profile">
+                            <i class="fas fa-user-circle me-1"></i>Hồ sơ
+                        </a>
+                    </li>
+                }
+                @if (User.IsInRole("Patient"))
+                {
+                    <li class="nav-item">
+                        <a class="nav-link" asp-controller="Patient" asp-action="Index">
+                            <i class="fas fa-home me-1"></i>Trang cá nhân
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" asp-controller="Patient" asp-action="Doctors">
+                            <i class="fas fa-calendar-plus me-1"></i>Đặt lịch khám
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" asp-controller="Patient" asp-action="MyAppointments">
+                            <i class="fas fa-calendar-check me-1"></i>Lịch hẹn của tôi
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" asp-controller="Patient" asp-action="MedicalHistory">
+                            <i class="fas fa-file-medical me-1"></i>Lịch sử khám
+                        </a>
+                    </li>
+                }
+            </ul>
+            <ul class="navbar-nav">
+                @if (User.Identity!.IsAuthenticated)
+                {
+                    <li class="nav-item dropdown">
+                        <a class="nav-link dropdown-toggle d-flex align-items-center gap-2" href="#" role="button" data-bs-toggle="dropdown">
+                            <div class="avatar-sm">@(User.FindFirst("FullName")?.Value?.Substring(0, 1).ToUpper())</div>
+                            <span class="d-none d-lg-inline">@User.FindFirst("FullName")?.Value</span>
+                        </a>
+                        <ul class="dropdown-menu dropdown-menu-end">
+                            <li class="px-3 py-2">
+                                <div class="fw-600 text-dark">@User.FindFirst("FullName")?.Value</div>
+                                <small class="text-muted badge bg-light text-secondary">@User.FindFirst("Role")?.Value</small>
+                            </li>
+                            <li><hr class="dropdown-divider"></li>
+                            @if (User.IsInRole("Patient"))
+                            {
+                                <li><a class="dropdown-item" asp-controller="Patient" asp-action="Profile"><i class="fas fa-user-edit me-2"></i>Cập nhật hồ sơ</a></li>
+                                <li><hr class="dropdown-divider"></li>
+                            }
+                            @if (User.IsInRole("Doctor"))
+                            {
+                                <li><a class="dropdown-item" asp-controller="Doctor" asp-action="Profile"><i class="fas fa-user-edit me-2"></i>Hồ sơ cá nhân</a></li>
+                                <li><hr class="dropdown-divider"></li>
+                            }
+                            <li>
+                                <form asp-controller="Account" asp-action="Logout" method="post">
+                                    <button type="submit" class="dropdown-item text-danger">
+                                        <i class="fas fa-sign-out-alt me-2"></i>Đăng xuất
+                                    </button>
+                                </form>
+                            </li>
+                        </ul>
+                    </li>
+                }
+                else
+                {
+                    <li class="nav-item">
+                        <a class="nav-link" asp-controller="Account" asp-action="Login">
+                            <i class="fas fa-sign-in-alt me-1"></i>Đăng nhập
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link btn-nav-register ms-1" asp-controller="Account" asp-action="Register">
+                            <i class="fas fa-user-plus me-1"></i>Đăng ký
+                        </a>
+                    </li>
+                }
+            </ul>
+        </div>
+    </div>
+</nav>
+</header>
+
+<div class="main-wrapper">
+    <div class="container py-4">
+        @RenderBody()
+    </div>
+</div>
+
+<footer class="footer mt-auto">
+    <div class="container">
+        <div class="row g-4 py-4">
+            <div class="col-md-4">
+                <div class="d-flex align-items-center gap-2 mb-3">
+                    <div class="brand-icon" style="background:rgba(255,255,255,0.15)"><i class="fas fa-hospital-alt"></i></div>
+                    <span class="fw-700 fs-5">Phòng Khám Y Khoa</span>
+                </div>
+                <p class="text-sm opacity-75">Hệ thống quản lý phòng khám hiện đại, kết nối bác sĩ và bệnh nhân.</p>
+            </div>
+            <div class="col-md-4">
+                <h6 class="fw-700 mb-3">Liên hệ</h6>
+                <div class="text-sm opacity-75">
+                    <div class="mb-1"><i class="fas fa-map-marker-alt me-2"></i>123 Đường Sức Khỏe, Hà Nội</div>
+                    <div class="mb-1"><i class="fas fa-phone me-2"></i>1900 1234</div>
+                    <div><i class="fas fa-envelope me-2"></i>info@phongkham.vn</div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <h6 class="fw-700 mb-3">Giờ làm việc</h6>
+                <div class="text-sm opacity-75">
+                    <div class="mb-1"><i class="fas fa-clock me-2"></i>Thứ 2 – Thứ 6: 07:00 – 17:00</div>
+                    <div><i class="fas fa-clock me-2"></i>Thứ 7: 07:00 – 12:00</div>
+                </div>
+            </div>
+        </div>
+        <hr class="border-white opacity-25">
+        <div class="py-2 text-center text-sm opacity-60">
+            &copy; 2026 Hệ thống Quản lý Phòng Khám Y Khoa. Bảo lưu mọi quyền.
+        </div>
+    </div>
+</footer>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+@await RenderSectionAsync("Scripts", required: false)
+</body>
+</html>

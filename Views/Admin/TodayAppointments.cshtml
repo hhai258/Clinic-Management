@@ -1,0 +1,175 @@
+@model IEnumerable<ClinicManagement.Models.Appointment>
+@{
+    ViewData["Title"] = "Lịch hẹn hôm nay";
+    var allList = Model.ToList();
+    var waitingList = allList.Where(a => a.Status == "Đã đặt").ToList();
+    var doneList = allList.Where(a => a.Status == "Đã khám").ToList();
+    var cancelledList = allList.Where(a => a.Status == "Đã hủy").ToList();
+}
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h2><i class="fas fa-calendar-day me-2 text-primary"></i>Lịch hẹn hôm nay</h2>
+        <small class="text-muted"><i class="fas fa-clock me-1"></i>@DateTime.Today.ToString("dddd, dd/MM/yyyy")</small>
+    </div>
+    <a asp-action="CreateAppointment" class="btn btn-primary">
+        <i class="fas fa-plus me-1"></i>Tạo lịch hẹn mới
+    </a>
+</div>
+
+@if (TempData["SuccessMessage"] != null)
+{
+    <div class="alert alert-success alert-dismissible fade show">
+        <i class="fas fa-check-circle me-2"></i>@TempData["SuccessMessage"]
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+}
+@if (TempData["ErrorMessage"] != null)
+{
+    <div class="alert alert-danger alert-dismissible fade show">
+        <i class="fas fa-exclamation-circle me-2"></i>@TempData["ErrorMessage"]
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+}
+
+<div class="row g-3 mb-4">
+    <div class="col-sm-3">
+        <div class="card border-0 shadow-sm text-center py-3">
+            <div class="fs-1 fw-bold text-primary">@allList.Count</div>
+            <div class="text-muted"><i class="fas fa-calendar me-1"></i>Tổng lịch</div>
+        </div>
+    </div>
+    <div class="col-sm-3">
+        <div class="card border-0 shadow-sm text-center py-3">
+            <div class="fs-1 fw-bold text-warning">@waitingList.Count</div>
+            <div class="text-muted"><i class="fas fa-hourglass-half me-1"></i>Chờ khám</div>
+        </div>
+    </div>
+    <div class="col-sm-3">
+        <div class="card border-0 shadow-sm text-center py-3">
+            <div class="fs-1 fw-bold text-success">@doneList.Count</div>
+            <div class="text-muted"><i class="fas fa-check-circle me-1"></i>Đã khám</div>
+        </div>
+    </div>
+    <div class="col-sm-3">
+        <div class="card border-0 shadow-sm text-center py-3">
+            <div class="fs-1 fw-bold text-danger">@cancelledList.Count</div>
+            <div class="text-muted"><i class="fas fa-times-circle me-1"></i>Đã hủy</div>
+        </div>
+    </div>
+</div>
+
+<ul class="nav nav-tabs mb-0" id="statusTabs" role="tablist">
+    <li class="nav-item"><a class="nav-link active" data-bs-toggle="tab" href="#tabAll">Tất cả (@allList.Count)</a></li>
+    <li class="nav-item"><a class="nav-link" data-bs-toggle="tab" href="#tabWaiting"><span class="badge bg-warning text-dark me-1">@waitingList.Count</span>Chờ khám</a></li>
+    <li class="nav-item"><a class="nav-link" data-bs-toggle="tab" href="#tabDone"><span class="badge bg-success me-1">@doneList.Count</span>Đã khám</a></li>
+    <li class="nav-item"><a class="nav-link" data-bs-toggle="tab" href="#tabCancelled"><span class="badge bg-danger me-1">@cancelledList.Count</span>Đã hủy</a></li>
+</ul>
+
+@{
+    string RenderStatus(string status)
+    {
+        return status switch
+        {
+            "Đã đặt" => "<span class='badge bg-warning text-dark'>Chờ khám</span>",
+            "Đã khám" => "<span class='badge bg-success'>Đã khám</span>",
+            _ => "<span class='badge bg-danger'>Đã hủy</span>"
+        };
+    }
+}
+
+<div class="tab-content card card-body border-top-0 rounded-top-0 shadow-sm mb-4 p-0">
+
+    @foreach (var (tabId, tabList) in new[] {
+        ("tabAll", allList),
+        ("tabWaiting", waitingList),
+        ("tabDone", doneList),
+        ("tabCancelled", cancelledList)
+    })
+    {
+        <div class="tab-pane fade @(tabId == "tabAll" ? "show active" : "")" id="@tabId">
+            @if (!tabList.Any())
+            {
+                <div class="text-center py-5 text-muted">
+                    <i class="fas fa-calendar-times fa-3x mb-3 d-block"></i>
+                    Không có lịch hẹn nào
+                </div>
+            }
+            else
+            {
+                <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Giờ</th>
+                            <th>Bệnh nhân</th>
+                            <th>Bác sĩ</th>
+                            <th>Chuyên khoa</th>
+                            <th>Lý do</th>
+                            <th>Trạng thái</th>
+                            <th class="text-center">Thao tác</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var a in tabList)
+                        {
+                            <tr>
+                                <td><span class="badge bg-light text-dark border fw-bold">@a.AppointmentTime</span></td>
+                                <td>
+                                    <div class="fw-semibold">@a.Patient?.FullName</div>
+                                    <small class="text-muted">@a.Patient?.PhoneNumber</small>
+                                </td>
+                                <td>@a.Doctor?.User?.FullName</td>
+                                <td><span class="badge bg-info-subtle text-info-emphasis">@a.Doctor?.Specialty?.SpecialtyName</span></td>
+                                <td><small>@(a.Reason?.Length > 40 ? a.Reason.Substring(0, 40) + "..." : a.Reason)</small></td>
+                                <td>@Html.Raw(RenderStatus(a.Status))</td>
+                                <td class="text-center">
+                                    <div class="d-flex gap-1 justify-content-center">
+                                        @if (a.Status == "Đã đặt")
+                                        {
+                                            <form asp-action="UpdateAppointmentStatus" method="post" class="d-inline">
+                                                @Html.AntiForgeryToken()
+                                                <input type="hidden" name="id" value="@a.AppointmentId" />
+                                                <input type="hidden" name="status" value="Đã khám" />
+                                                <button type="submit" class="btn btn-success btn-sm" title="Đã khám xong"
+                                                        onclick="return confirm('Đánh dấu đã khám xong?')">
+                                                    <i class="fas fa-check"></i>
+                                                </button>
+                                            </form>
+                                            <form asp-action="UpdateAppointmentStatus" method="post" class="d-inline">
+                                                @Html.AntiForgeryToken()
+                                                <input type="hidden" name="id" value="@a.AppointmentId" />
+                                                <input type="hidden" name="status" value="Đã hủy" />
+                                                <button type="submit" class="btn btn-danger btn-sm" title="Hủy lịch"
+                                                        onclick="return confirm('Hủy lịch hẹn này?')">
+                                                    <i class="fas fa-times"></i>
+                                                </button>
+                                            </form>
+                                        }
+                                        @if (a.Status == "Đã khám" || a.Status == "Đã hủy")
+                                        {
+                                            <form asp-action="UpdateAppointmentStatus" method="post" class="d-inline">
+                                                @Html.AntiForgeryToken()
+                                                <input type="hidden" name="id" value="@a.AppointmentId" />
+                                                <input type="hidden" name="status" value="Đã đặt" />
+                                                <button type="submit" class="btn btn-warning btn-sm" title="Đặt lại chờ khám"
+                                                        onclick="return confirm('Đặt lại trạng thái chờ khám?')">
+                                                    <i class="fas fa-undo"></i>
+                                                </button>
+                                            </form>
+                                        }
+                                        <a asp-action="EditAppointment" asp-route-id="@a.AppointmentId"
+                                           class="btn btn-outline-primary btn-sm" title="Sửa lịch hẹn">
+                                            <i class="fas fa-edit"></i>
+                                        </a>
+                                    </div>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+                </div>
+            }
+        </div>
+    }
+</div>

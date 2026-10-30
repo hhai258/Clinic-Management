@@ -1,0 +1,159 @@
+@{
+    ViewData["Title"] = "Chuyên khoa " + ViewBag.Specialty.SpecialtyName;
+    var specialty = ViewBag.Specialty as ClinicManagement.Models.Specialty;
+    var doctors = ViewBag.Doctors as IEnumerable<ClinicManagement.Models.Doctor> ?? new List<ClinicManagement.Models.Doctor>();
+
+    var specialtyIcons = new Dictionary<string, string>
+    {
+        ["Noi khoa"] = "fa-heartbeat",
+        ["Nhi khoa"] = "fa-baby",
+        ["Da lieu"] = "fa-allergies",
+        ["Tim mach"] = "fa-heart",
+        ["Tai Mui Hong"] = "fa-ear",
+    };
+    var specialtyDescriptions = new Dictionary<string, string>
+    {
+        ["Noi khoa"] = "Chuyên khoa Nội tổng quát chẩn đoán và điều trị các bệnh lý về hệ nội tạng: tim, phổi, gan, thận, tiêu hóa, nội tiết. Đội ngũ bác sĩ Nội khoa của chúng tôi được đào tạo chuyên sâu, sử dụng các phương pháp tiên tiến nhất để mang lại kết quả điều trị tốt nhất.",
+        ["Nhi khoa"] = "Chuyên khoa Nhi chuyên chăm sóc sức khỏe trẻ em từ sơ sinh đến 16 tuổi. Các bác sĩ Nhi của chúng tôi tận tâm, giàu kinh nghiệm trong xử lý các bệnh lý trẻ em, từ bệnh thông thường đến các trường hợp phức tạp, giúp trẻ phát triển khỏe mạnh.",
+        ["Da lieu"] = "Chuyên khoa Da liễu chẩn đoán và điều trị toàn diện các bệnh về da, tóc, móng và niêm mạc. Từ viêm da, mụn trứng cá, nấm da đến các bệnh tự miễn về da, đội ngũ bác sĩ sử dụng thiết bị hiện đại và phác đồ điều trị chuẩn quốc tế.",
+        ["Tim mach"] = "Chuyên khoa Tim mạch can thiệp và điều trị các bệnh về tim, mạch máu: tăng huyết áp, suy tim, rối loạn nhịp tim, bệnh mạch vành. Trang bị hệ thống siêu âm tim, holter 24h, điện tâm đồ tiên tiến để chẩn đoán chính xác.",
+        ["Tai Mui Hong"] = "Chuyên khoa Tai Mũi Họng thăm khám và điều trị các bệnh lý: viêm xoang, viêm amidan, viêm tai giữa, polyp mũi, rối loạn thính giác. Phòng khám được trang bị nội soi tai mũi họng công nghệ cao, xử lý nhanh các ca cấp cứu.",
+    };
+    string specName = specialty?.SpecialtyName ?? "";
+    string icon = specialtyIcons.ContainsKey(specName) ? specialtyIcons[specName] : "fa-stethoscope";
+    string desc = specialtyDescriptions.ContainsKey(specName) ? specialtyDescriptions[specName] : (specialty?.Description ?? "Chuyên khoa chất lượng cao với đội ngũ bác sĩ giàu kinh nghiệm.");
+}
+
+<!-- BREADCRUMB -->
+<nav aria-label="breadcrumb" class="mb-3">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a asp-controller="Home" asp-action="Index">Trang chủ</a></li>
+        <li class="breadcrumb-item active">@specialty?.SpecialtyName</li>
+    </ol>
+</nav>
+
+<!-- SPECIALTY HERO -->
+<div class="card mb-4" style="background:linear-gradient(135deg,#2563eb,#1d4ed8);color:#fff;border:none;border-radius:16px;overflow:hidden">
+    <div class="card-body p-4 p-md-5">
+        <div class="row align-items-center">
+            <div class="col-md-8">
+                <div class="d-flex align-items-center gap-3 mb-3">
+                    <div style="width:64px;height:64px;background:rgba(255,255,255,0.15);border-radius:16px;display:flex;align-items:center;justify-content:center;font-size:1.8rem">
+                        <i class="fas @icon"></i>
+                    </div>
+                    <div>
+                        <h1 class="mb-0 fw-700" style="font-size:2rem">@specialty?.SpecialtyName</h1>
+                        <div style="opacity:.8">@doctors.Count() bác sĩ chuyên khoa</div>
+                    </div>
+                </div>
+                <p class="mb-0" style="opacity:.9;line-height:1.7">@desc</p>
+            </div>
+            <div class="col-md-4 d-none d-md-flex justify-content-end">
+                <div style="font-size:8rem;opacity:.1"><i class="fas @icon"></i></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- SERVICES -->
+<div class="row g-3 mb-4">
+    @{
+        var services = new[] {
+            new { Icon="fa-search-plus", Title="Chẩn đoán chính xác", Desc="Sử dụng thiết bị hiện đại, công nghệ tiên tiến" },
+            new { Icon="fa-pills", Title="Điều trị hiệu quả", Desc="Phác đồ điều trị chuẩn quốc tế, cập nhật liên tục" },
+            new { Icon="fa-calendar-check", Title="Theo dõi định kỳ", Desc="Hỗ trợ bệnh nhân trong suốt quá trình điều trị" },
+            new { Icon="fa-comment-medical", Title="Tư vấn tận tâm", Desc="Bác sĩ lắng nghe, giải đáp mọi thắc mắc" },
+        };
+    }
+    @foreach (var s in services)
+    {
+        <div class="col-6 col-md-3">
+            <div class="card text-center p-3 h-100">
+                <div style="width:48px;height:48px;background:#dbeafe;color:#2563eb;border-radius:12px;display:flex;align-items:center;justify-content:center;margin:0 auto 12px">
+                    <i class="fas @s.Icon"></i>
+                </div>
+                <div class="fw-600 mb-1" style="font-size:.9rem">@s.Title</div>
+                <div class="text-muted" style="font-size:.8rem">@s.Desc</div>
+            </div>
+        </div>
+    }
+</div>
+
+<!-- DOCTORS LIST -->
+<div class="mb-2 d-flex align-items-center justify-content-between">
+    <h5 class="fw-700 mb-0"><i class="fas fa-user-md me-2 text-primary"></i>Đội ngũ bác sĩ</h5>
+    <span class="badge bg-primary rounded-pill">@doctors.Count() bác sĩ</span>
+</div>
+
+@if (!doctors.Any())
+{
+    <div class="card p-5 text-center text-muted">
+        <i class="fas fa-user-slash fa-3x mb-3 opacity-25 d-block"></i>
+        Chưa có bác sĩ trong chuyên khoa này
+    </div>
+}
+else
+{
+    <div class="row g-3 mb-4">
+        @foreach (var doc in doctors)
+        {
+            <div class="col-sm-6 col-lg-4">
+                <div class="doctor-card">
+                    @if (!string.IsNullOrEmpty(doc.PhotoUrl))
+                    {
+                        <img src="@doc.PhotoUrl" class="doctor-photo" alt="@doc.User.FullName" />
+                    }
+                    else
+                    {
+                        <div class="doctor-photo-placeholder"><i class="fas fa-user-md"></i></div>
+                    }
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between align-items-start mb-2">
+                            <div>
+                                <div class="fw-700">@doc.Degree. @doc.User.FullName</div>
+                                <div class="text-sm text-muted">@doc.Specialty.SpecialtyName</div>
+                            </div>
+                            <span class="badge" style="background:#dbeafe;color:#2563eb">@doc.Degree</span>
+                        </div>
+                        @if (!string.IsNullOrEmpty(doc.Bio))
+                        {
+                            <p class="text-muted text-sm mb-2">@(doc.Bio.Length > 80 ? doc.Bio.Substring(0, 80) + "..." : doc.Bio)</p>
+                        }
+                        <div class="d-flex gap-3 text-sm text-muted mb-3">
+                            <span><i class="fas fa-briefcase me-1"></i>@doc.Experience năm KN</span>
+                            <span><i class="fas fa-money-bill me-1"></i>@doc.ExaminationFee.ToString("N0")₫</span>
+                        </div>
+                        @if (User.IsInRole("Patient"))
+                        {
+                            <a asp-controller="Patient" asp-action="BookAppointment" asp-route-doctorId="@doc.DoctorId" class="btn btn-primary btn-sm w-100">
+                                <i class="fas fa-calendar-plus me-1"></i>Đặt lịch khám
+                            </a>
+                        }
+                        else if (!User.Identity!.IsAuthenticated)
+                        {
+                            <a asp-controller="Account" asp-action="Register" class="btn btn-outline-primary btn-sm w-100">
+                                <i class="fas fa-user-plus me-1"></i>Đăng ký để đặt lịch
+                            </a>
+                        }
+                    </div>
+                </div>
+            </div>
+        }
+    </div>
+
+    @if (!User.IsInRole("Patient") && !User.Identity!.IsAuthenticated)
+    {
+        <div class="card p-4 text-center" style="background:linear-gradient(135deg,#eff6ff,#dbeafe);border:none">
+            <h5 class="fw-700 mb-2">Sẵn sàng đặt lịch khám?</h5>
+            <p class="text-muted mb-3">Đăng ký tài khoản để đặt lịch trực tuyến nhanh chóng, tiện lợi</p>
+            <div class="d-flex gap-2 justify-content-center">
+                <a asp-controller="Account" asp-action="Register" class="btn btn-primary">
+                    <i class="fas fa-user-plus me-2"></i>Đăng ký ngay
+                </a>
+                <a asp-controller="Account" asp-action="Login" class="btn btn-outline-primary">
+                    <i class="fas fa-sign-in-alt me-2"></i>Đăng nhập
+                </a>
+            </div>
+        </div>
+    }
+}
